@@ -3,11 +3,17 @@
 All notable changes to this module will be documented in this file.
 
 This module is one of a number of modules defined in a multi-module repository.
-Refer to [GitHub `../CHANGELOG.md`](https://github.com/supabase/supabase-go/blob/main/CHANGELOG.md) for further details on structure, format and sibling modules.
+Refer to [GitHub `../DEVELOPMENT.md`](https://github.com/supabase/supabase-go/blob/main/DEVELOPMENT.md#changelogs) for further details on structure and format, and to [GitHub `../CHANGELOG.md`](https://github.com/supabase/supabase-go/blob/main/CHANGELOG.md) for sibling modules.
 
 <!-- cSpell:ignore freebsd -->
 
 ## Unreleased
+
+### Changed
+
+`ModulePathRoot` now holds `github.com/supabase/supabase-go`, the new import path of the SDK's `supabase` package, where before it held `github.com/supabase/supabase-go/supabase`.
+
+If your code still imports `github.com/supabase/supabase-go/supabase`, calling `supabase.New` works with earlier versions of `core`, but with this one it panics with the message `telemetry: no client name registered for module "github.com/supabase/supabase-go"`. To fix it, change that import to `github.com/supabase/supabase-go` and run `go mod tidy`. The package is still named `supabase`, so the rest of your code stays the same.
 
 ### Fixed
 

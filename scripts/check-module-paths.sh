@@ -18,13 +18,10 @@
 # root require creeping into a domain module would force consumers of that one
 # domain to pull in modules they did not ask for.
 #
-# Containment: the repository root carries no go.mod, and every Go source file
-# lives inside a module directory. The go command treats a repository root
-# without go.mod as an implicit module, so a Go file outside every module
-# would be a package of that synthesized root module, and pkg.go.dev - which
-# refuses a module with no packages - would then render a root page carrying
-# the repository README. A root go.mod would make that module explicit and
-# put every stray Go file legitimately inside it, so it is refused first.
+# Containment: the root module is the repository root, and its package
+# patterns reach every directory that is not a nested module, so a Go file
+# anywhere outside the nested modules and the root package's own directory
+# would be a package of the root module, published with it.
 set -euo pipefail
 
 source "$(dirname "$0")/common.sh"
@@ -77,7 +74,7 @@ fi
 
 # The layering leg: everything below the root may require only core.
 core_module="${prefix}/core"
-root_module="${prefix}/supabase"
+root_module="${prefix}"
 violations=""
 for dir in ${workspace_modules}; do
   [ "$(module_path_of "${dir}/go.mod")" = "${root_module}" ] && continue
@@ -96,30 +93,34 @@ if [ -n "${violations}" ]; then
   exit 1
 fi
 
-# The containment leg. The root go.mod check comes first because with one in
-# place every Go file would count as inside a module.
-if [ -f go.mod ]; then
-  echo "The repository root holds a go.mod, which makes the root itself a module - the one that would carry the repository README onto pkg.go.dev." >&2
-  echo "Remove it: every module lives in its own subdirectory, listed in go.work." >&2
+# The containment leg. The root module's go.mod comes first because the walk
+# below ends at it.
+if [ "$(module_path_of go.mod)" != "${root_module}" ]; then
+  echo "The repository root must hold the root module's go.mod, declaring module ${root_module}." >&2
   exit 1
 fi
 
-# A directory is inside a module when it or an ancestor holds a go.mod, which
-# is also the rule module zips follow: a nested module's directory is excluded
-# from every enclosing module's zip.
+# A file belongs to the nearest module above it, which is also the rule
+# module zips follow: a nested module's directory is excluded from every
+# enclosing module's zip. A file the root module owns must sit in the root
+# directory itself. The index lists an unstaged rename's old path too, and
+# only a file on disk can be a package, so those are skipped.
 strays=""
 while IFS= read -r file; do
+  [ -f "${file}" ] || continue
   dir="$(dirname "${file}")"
   until [ -f "${dir}/go.mod" ] || [ "${dir}" = "." ]; do
     dir="$(dirname "${dir}")"
   done
-  [ -f "${dir}/go.mod" ] || strays="${strays}  ${file}"$'\n'
+  if [ "${dir}" = "." ] && [ "$(dirname "${file}")" != "." ]; then
+    strays="${strays}  ${file}"$'\n'
+  fi
 done < <(git ls-files -- '*.go')
 
 if [ -n "${strays}" ]; then
-  echo "These Go files live outside every module directory:" >&2
+  echo "These Go files live outside every nested module, so they would be packages of the root module and published with it:" >&2
   printf '%s' "${strays}" >&2
-  echo "They would form a package of the implicit repository-root module and give pkg.go.dev a root page to render. Move them into a module." >&2
+  echo "Move them into a module." >&2
   exit 1
 fi
 

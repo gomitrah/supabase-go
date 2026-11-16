@@ -31,10 +31,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/supabase/supabase-go"
 	"github.com/supabase/supabase-go/auth"
 	"github.com/supabase/supabase-go/core/pagination"
 	"github.com/supabase/supabase-go/postgrest"
-	"github.com/supabase/supabase-go/supabase"
 )
 
 // profile maps a row of public.profiles, the mirror this project maintains of

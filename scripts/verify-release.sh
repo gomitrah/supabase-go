@@ -56,8 +56,9 @@ cd "${scratch}"
 count=0
 while read -r module version; do
   echo "==> download (direct from GitHub) ${module}@${version}"
-  report="${scratch}/$(printf '%s' "${module}" | tr '/' '-').json"
-  download_module_json "$(module_path_base)/${module}@${version}" "${report}"
+  module_path="$(module_path_for "${module}")"
+  report="${scratch}/$(printf '%s' "${module_path}" | tr '/' '-').json"
+  download_module_json "${module_path}@${version}" "${report}"
   if [ ! -f "$(jq -r '.Dir' "${report}")/LICENSE" ]; then
     echo "${module}@${version}: the module zip carries no LICENSE at its root." >&2
     exit 1

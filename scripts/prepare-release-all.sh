@@ -33,23 +33,10 @@ set -euo pipefail
 
 source "$(dirname "$0")/common.sh"
 
-module_base="$(module_path_base)"
 zero_pseudo_version="v0.0.0-00010101000000-000000000000"
 workspace_modules="$(enumerate_workspace_modules | sed 's|^\./||')"
 
 # --- helpers ----------------------------------------------------------------
-
-# Print a module's sibling requires as 'directory version' lines. $1 is the
-# module directory.
-sibling_requires() {
-  go mod edit -json "$1/go.mod" \
-    | jq -r '.Require[]? | "\(.Path) \(.Version)"' \
-    | while read -r path version; do
-        case "${path}" in
-          "${module_base}"/*) printf '%s %s\n' "${path#"${module_base}"/}" "${version}" ;;
-        esac
-      done
-}
 
 # Succeed when $1 equals one of the remaining arguments.
 in_list() {
@@ -146,7 +133,7 @@ while [ "${#remaining[@]}" -gt 0 ]; do
   for index in "${!remaining[@]}"; do
     module="${remaining[${index}]}"
     ready=1
-    for dependency in $(sibling_requires "${module}" | awk '{ print $1 }'); do
+    for dependency in $(sibling_requires_of "${module}" | awk '{ print $1 }'); do
       if in_list "${dependency}" "${remaining[@]}"; then
         ready=0
         break
@@ -175,7 +162,7 @@ release_modules=("${direct_modules[@]}")
 for module in "${all_ordered[@]}"; do
   in_list "${module}" "${release_modules[@]}" && continue
   triggers=""
-  for dependency in $(sibling_requires "${module}" | awk '{ print $1 }'); do
+  for dependency in $(sibling_requires_of "${module}" | awk '{ print $1 }'); do
     if in_list "${dependency}" "${release_modules[@]}"; then
       [ -n "${triggers}" ] && triggers="${triggers}, "
       triggers="${triggers}${dependency}"
@@ -222,7 +209,7 @@ transitive_named=0
 for module in "${ordered_modules[@]}"; do
   in_list "${module}" "${direct_modules[@]}" && continue
   triggers=""
-  for dependency in $(sibling_requires "${module}" | awk '{ print $1 }'); do
+  for dependency in $(sibling_requires_of "${module}" | awk '{ print $1 }'); do
     in_list "${dependency}" "${release_modules[@]}" && triggers="${triggers} ${dependency}"
   done
   echo "  ${module} (requires:${triggers})"
@@ -262,7 +249,7 @@ for module in "${ordered_modules[@]}"; do
     while read -r dependency dependency_current; do
       in_list "${dependency}" "${release_modules[@]}" || continue
       echo "    ${dependency} ${dependency_current} -> $(chosen_version "${dependency}")"
-    done < <(sibling_requires "${module}")
+    done < <(sibling_requires_of "${module}")
   fi
   if [ -n "${current}" ] && ! ./scripts/api-diff.sh "${module}" "${current}" | sed 's/^/    /'; then
     echo "Could not compare ${module} with ${current}, so stopping before anything is written." >&2
@@ -303,7 +290,7 @@ for module in "${ordered_modules[@]}"; do
     else
       echo "    pins ${dependency} ${dependency_current} (unchanged)"
     fi
-  done < <(sibling_requires "${module}")
+  done < <(sibling_requires_of "${module}")
   if ! in_list "${module}" "${direct_modules[@]}"; then
     echo "    writes ${module}/CHANGELOG.md '## Unreleased' section:"
     while read -r dependency dependency_current; do
@@ -313,7 +300,7 @@ for module in "${ordered_modules[@]}"; do
       else
         echo "      - Upgrades \`${dependency}\` from \`${dependency_current}\` to \`$(chosen_version "${dependency}")\`."
       fi
-    done < <(sibling_requires "${module}")
+    done < <(sibling_requires_of "${module}")
   fi
 done
 
@@ -351,7 +338,7 @@ for module in "${ordered_modules[@]}"; do
       else
         echo "- Upgrades \`${dependency}\` from \`${dependency_current}\` to \`$(chosen_version "${dependency}")\`."
       fi
-    done < <(sibling_requires "${module}")
+    done < <(sibling_requires_of "${module}")
   } > "${section_file}"
 
   changelog="${module}/CHANGELOG.md"
@@ -391,7 +378,7 @@ for module in "${ordered_modules[@]}"; do
     else
       pin_arguments+=("${dependency}=${dependency_current}")
     fi
-  done < <(sibling_requires "${module}")
+  done < <(sibling_requires_of "${module}")
 
   echo
   # Suppress prepare-release.sh's next-steps guidance: this script performs
@@ -399,8 +386,9 @@ for module in "${ordered_modules[@]}"; do
   PREPARE_RELEASE_SUPPRESS_NEXT_STEPS=1 \
     ./scripts/prepare-release.sh "${module}" "${new_version}" ${pin_arguments[@]+"${pin_arguments[@]}"}
   git add -A
-  git commit --quiet --message="Prepare release ${module}/${new_version}."
-  echo "==> committed: Prepare release ${module}/${new_version}."
+  release_tag="$(release_tag_for "${module}" "${new_version}")"
+  git commit --quiet --message="Prepare release ${release_tag}."
+  echo "==> committed: Prepare release ${release_tag}."
 done
 
 # --- pre-flight, as RELEASING.md's next step ----------------------------------

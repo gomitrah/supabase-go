@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/supabase/supabase-go"
 	"github.com/supabase/supabase-go/core/configuration"
 	"github.com/supabase/supabase-go/postgrest"
-	"github.com/supabase/supabase-go/supabase"
 )
 
 // ExampleNew customizes the client with the shared functional

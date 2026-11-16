@@ -1,47 +1,38 @@
-# Supabase Go SDK Changelog
+# Changelog
 
-This is a multi-module repository containing discrete Go modules, which in aggregate form the Supabase Go SDK.
-Each module defines its own changelog file.
-The format of each of those changelog files is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), with modules adhering to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this module will be documented in this file.
 
-The canonical list of modules published to form this SDK is defined in [`go.work`](go.work).
-For convenience, here are links to each of their changelog files:
+This module is the root of a multi-module repository.
+The other published modules, which [`go.work`](go.work) lists, each keep a changelog of their own: [`auth`](auth/CHANGELOG.md), [`core`](core/CHANGELOG.md) and [`postgrest`](postgrest/CHANGELOG.md).
+Refer to [`DEVELOPMENT.md`](DEVELOPMENT.md#changelogs) for the structure and format every module's changelog follows.
 
-- [`auth`](auth/CHANGELOG.md)
-- [`core`](core/CHANGELOG.md)
-- [`postgrest`](postgrest/CHANGELOG.md)
-- [`supabase`](supabase/CHANGELOG.md)
+## Unreleased
 
-## Deviations from Keep a Changelog
+### Changed
 
-### Avoid
+Relocates the module to the repository root: it is imported as `github.com/supabase/supabase-go`, no longer as `github.com/supabase/supabase-go/supabase`, and its release tags carry the bare version. The releases below, headed by their `supabase/` tags, were made at the old import path and remain published there.
 
-Our changelog files **DO NOT**:
+## `supabase/v0.1.0-alpha.4` (2026-11-09)
 
-- format the unreleased heading with enclosing square brackets, nor do they define a reference-style link for `unreleased` at the bottom of the file. The unreleased heading is always simple, unformatted text in the form:
-  ```markdown
-  ## Unreleased
-  ```
-- include an empty unreleased section at the top, because an empty section above the newest release draws the eye away from it. The heading exists only once there are entries to document, added by the first future iteration with user-facing change that follows a release.
-- use the version heading form `## [1.1.1] - 2023-03-05`.
-- embed links into any headings, as this is confusing in the GitHub viewing context, prompting the reader to wonder if a click would link to that heading or the underlying diff view.
-- include links to GitHub-rendered diffs, and thus do not embed reliance on GitHub's `org/repo/compare/X...Y` endpoints.
+### Changed
 
-### Humans and Machines
+- Upgrades `auth` from `v0.1.0-alpha.3` to `v0.1.0-alpha.4`.
+- Upgrades `core` from `v0.1.0-alpha.2` to `v0.1.0-alpha.3`.
+- Upgrades `postgrest` from `v0.1.0-alpha.1` to `v0.1.0-alpha.2`.
 
-Our changelog files are also not _just_ designed for humans. Keep a Changelog [states](https://keepachangelog.com/en/1.1.0/#who):
+## `supabase/v0.1.0-alpha.3` (2026-11-05)
 
-> **Who needs a changelog?**  
-> People do. Whether consumers or developers, the end users of software are human beings who care about what's in the software. When the software changes, people want to know why and how.
+### Changed
 
-We completely agree, however we also understand that our changelog files are increasingly read by and relied upon by AI builders, as a source of truth and aggregate index in the spirit of [progressive disclosure](https://agentskills.io/specification#progressive-disclosure). This is also true.
+- Upgrades `auth` from `v0.1.0-alpha.2` to `v0.1.0-alpha.3`.
 
-Therefore we aim to write our changelog entries so that they can be parsed by humans and machines alike, using natural language, avoiding overly mechanized content formatting or going into too much detail that ends up presenting information that could already be gleaned relatively quickly from other source files. A succinct and snappy synopsis that contains links to canonical sources of more detailed information is the sweet spot.
+## `supabase/v0.1.0-alpha.2` (2026-10-15)
 
-## Entry Shape
+### Changed
 
-Entries sit under the type headings Keep a Changelog defines (`### Added`, `### Changed`, `### Fixed` and family) inside their release or unreleased section. Each entry will usually take the form of a lead line naming the consumer-visible surface, followed by terse bullets naming the key entry points that were added, changed or removed.
+- Upgrades `auth` from `v0.1.0-alpha.1` to `v0.1.0-alpha.2`.
+- Upgrades `core` from `v0.1.0-alpha.1` to `v0.1.0-alpha.2`.
 
-Choose the heading from the consumer's side, not the author's. Behavior that departed from a spec or a documented contract was a bug, even when it was built that way on purpose, so bringing it into line is `### Fixed`, and the lead line says so plainly: it aligns our implementation with the spec. Link the spec at the exact commit it was aligned to, never a branch, because specs move.
+## `supabase/v0.1.0-alpha.1` (2026-10-01)
 
-Anything a reader can discover from the entry points themselves - signatures, field lists, wire behavior, the content of doc comments - should stay out of the entry, and so should the parameter and result types, options, constants and sentinel errors that arrive with them. Such an identifier earns its own bullet only when it is itself the change, as with a sentinel error that already-released calls start to return. The reader is a consumer deciding whether and how to upgrade, not a reviewer of the work.
+Convenience root client that composes the SDK's domain clients behind one configuration, with the Database client at `Client.Database` and the Auth client at `Client.Auth`. See the [package documentation](https://pkg.go.dev/github.com/supabase/supabase-go/supabase).

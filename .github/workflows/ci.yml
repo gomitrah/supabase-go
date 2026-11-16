@@ -25,9 +25,10 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
-          # The action's implicit cache expects a root go.mod, which this
-          # go.work-rooted repository does not have, so it never restored
-          # anything here. Off on every setup-go step (see decisions.md).
+          # The action's implicit cache has little to restore for
+          # dependency-free modules, and its job-agnostic key would hand
+          # heterogeneous jobs one shared entry. Off on every setup-go step
+          # (see decisions.md).
           cache: false
       # No `go mod tidy` gate yet: with zero external dependencies the go.mod
       # files only carry the sibling `require` lines (set via `go mod edit`), and

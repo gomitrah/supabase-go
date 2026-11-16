@@ -15,7 +15,7 @@ source "$(dirname "$0")/common.sh"
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
   echo "usage: $0 <module> [<version>]" >&2
-  echo "  module   a published module directory listed in go.work, e.g. core" >&2
+  echo "  module   a published module directory listed in go.work, e.g. core, or . for the root module" >&2
   echo "  version  the release to compare with, by default the newest its changelog declares" >&2
   exit 2
 fi
@@ -30,7 +30,7 @@ if [ -z "${version}" ]; then
   echo "${module} has no release to compare with."
   exit 0
 fi
-module_path="$(module_path_base)/${module}"
+module_path="$(module_path_for "${module}")"
 
 scratch="$(mktemp -d)"
 trap 'rm -rf "${scratch}"' EXIT

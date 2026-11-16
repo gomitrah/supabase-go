@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"golang.org/x/mod/modfile"
 )
 
 // urlOccurrence is one appearance of a URL in a comment, addressed by the
@@ -35,12 +37,17 @@ func compareOccurrences(left, right urlOccurrence) int {
 // publicSourceFiles returns, in lexical walk order, the Go files under
 // moduleDirectory that carry the module's public API surface: every .go file
 // except test files, files under internal or testdata directories, files
-// under directories whose name starts with "." or "_" and files belonging to
-// nested modules (directories below the root holding their own go.mod).
+// under directories whose name starts with "." or "_", files belonging to
+// nested modules (directories below the root holding their own go.mod) and
+// files under directories the module's go.mod ignore directive names.
 func publicSourceFiles(moduleDirectory string) ([]string, error) {
 	rootDirectory := filepath.Clean(moduleDirectory)
+	ignored, err := ignoredDirectories(rootDirectory)
+	if err != nil {
+		return nil, err
+	}
 	var files []string
-	err := filepath.WalkDir(rootDirectory, func(path string, entry fs.DirEntry, err error) error {
+	err = filepath.WalkDir(rootDirectory, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -56,6 +63,13 @@ func publicSourceFiles(moduleDirectory string) ([]string, error) {
 			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
 				return filepath.SkipDir
 			}
+			relativePath, err := filepath.Rel(rootDirectory, path)
+			if err != nil {
+				return err
+			}
+			if ignored(relativePath) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
@@ -67,6 +81,52 @@ func publicSourceFiles(moduleDirectory string) ([]string, error) {
 		return nil, err
 	}
 	return files, nil
+}
+
+// ignoredDirectories returns a predicate reporting whether a directory,
+// given by its slash-separated path relative to the module root, is one the
+// module's go.mod ignore directive excludes, by the go command's rule
+// (https://go.dev/ref/mod#go-mod-file-ignore): a path written with a
+// leading "./" names that directory at the module root, any other path
+// names every directory it occurs at, at any depth. Each covers everything
+// beneath it.
+func ignoredDirectories(moduleDirectory string) (func(relativePath string) bool, error) {
+	goModPath := filepath.Join(moduleDirectory, "go.mod")
+	data, err := os.ReadFile(goModPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", goModPath, err)
+	}
+	goMod, err := modfile.Parse(goModPath, data, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", goModPath, err)
+	}
+	// Each pattern and candidate is framed by slashes, so a match is a whole
+	// path element sequence: "/node_modules/" never matches "/my_node_modules/".
+	frame := func(p string) string {
+		return "/" + strings.Trim(filepath.ToSlash(p), "/") + "/"
+	}
+	var atRoot, anywhere []string
+	for _, ignore := range goMod.Ignore {
+		if pattern, isAtRoot := strings.CutPrefix(ignore.Path, "./"); isAtRoot {
+			atRoot = append(atRoot, frame(pattern))
+		} else {
+			anywhere = append(anywhere, frame(ignore.Path))
+		}
+	}
+	return func(relativePath string) bool {
+		candidate := frame(relativePath)
+		for _, pattern := range atRoot {
+			if strings.HasPrefix(candidate, pattern) {
+				return true
+			}
+		}
+		for _, pattern := range anywhere {
+			if strings.Contains(candidate, pattern) {
+				return true
+			}
+		}
+		return false
+	}, nil
 }
 
 // extractURLOccurrences parses the file and returns every URL that

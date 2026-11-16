@@ -28,7 +28,7 @@ The repository is a multi-module monorepo. Intra-repo dependencies are resolved 
 If you're working from a new machine or perhaps inside a minimal sandbox, then you might want to first look at [Build Prerequisites](#build-prerequisites).
 
 There is no task runner or aggregate linter. Build and test with the standard toolchain in each module directory
-([`auth`](auth/), [`core`](core/), [`postgrest`](postgrest/), [`supabase`](supabase), etc..):
+([`auth`](auth/), [`core`](core/), [`postgrest`](postgrest/) and the repository root for the `supabase` module):
 
 ```bash
 go build ./...
@@ -85,7 +85,7 @@ It probes live websites, so it is deliberately not part of `./scripts/check-fast
 
 ### Running checks at the consumer floor
 
-[CI](.github/workflows/ci.yml) proves consumer-facing behavior on two toolchains: the published floor (the oldest Go a consumer may hold us to - see [Supported Go versions](README.md#supported-go-versions)) and current stable. A local run uses whatever Go is installed, so to reproduce the floor legs name the toolchain for that run:
+[CI](.github/workflows/ci.yml) proves consumer-facing behavior on two toolchains: the published floor (the oldest Go a consumer may hold us to - see [Supported Go versions](.github/README.md#supported-go-versions)) and current stable. A local run uses whatever Go is installed, so to reproduce the floor legs name the toolchain for that run:
 
 ```bash
 GOTOOLCHAIN=go1.26.8 ./scripts/build-and-test.sh
@@ -280,6 +280,46 @@ Concretely:
 - **Laid out for scanning.** A doc comment opens with a one-sentence summary, then gives each further topic (concurrency, failure handling, return values, lifecycle) a paragraph of its own. Cases, outcomes, conditions or guarantees that a sentence would otherwise chain with commas become a [list](https://go.dev/doc/comment#lists) under a lead-in line ending in a colon, one item each. A sentence carrying more than two clauses is split. A usage snippet sits as a [code block](https://go.dev/doc/comment#code) beside the sentence it illustrates.
 
 These rules apply to every commentary surface in the repository: Go doc comments (exported and internal), inline comments and comments in scripts, workflows, SQL and configuration files.
+
+## Changelogs
+
+Each published module keeps a `CHANGELOG.md` beside its code, based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), with modules adhering to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+A module that moves keeps its changelog, and the releases it made under its earlier tag prefix keep their entries, headed by the tag they were released under rather than the bare version (`` ## `supabase/v0.1.0-alpha.4` (2026-11-09) `` in the root module's changelog). The release automation reads such a heading as history of another path, never as a version of the module's current one.
+
+### Deviations from Keep a Changelog
+
+#### Avoid
+
+Our changelog files **DO NOT**:
+
+- format the unreleased heading with enclosing square brackets, nor do they define a reference-style link for `unreleased` at the bottom of the file. The unreleased heading is always simple, unformatted text in the form:
+  ```markdown
+  ## Unreleased
+  ```
+- include an empty unreleased section at the top, because an empty section above the newest release draws the eye away from it. The heading exists only once there are entries to document, added by the first future iteration with user-facing change that follows a release.
+- use the version heading form `## [1.1.1] - 2023-03-05`.
+- embed links into any headings, as this is confusing in the GitHub viewing context, prompting the reader to wonder if a click would link to that heading or the underlying diff view.
+- include links to GitHub-rendered diffs, and thus do not embed reliance on GitHub's `org/repo/compare/X...Y` endpoints.
+
+#### Humans and Machines
+
+Our changelog files are also not _just_ designed for humans. Keep a Changelog [states](https://keepachangelog.com/en/1.1.0/#who):
+
+> **Who needs a changelog?**  
+> People do. Whether consumers or developers, the end users of software are human beings who care about what's in the software. When the software changes, people want to know why and how.
+
+We completely agree, however we also understand that our changelog files are increasingly read by and relied upon by AI builders, as a source of truth and aggregate index in the spirit of [progressive disclosure](https://agentskills.io/specification#progressive-disclosure). This is also true.
+
+Therefore we aim to write our changelog entries so that they can be parsed by humans and machines alike, using natural language, avoiding overly mechanized content formatting or going into too much detail that ends up presenting information that could already be gleaned relatively quickly from other source files. A succinct and snappy synopsis that contains links to canonical sources of more detailed information is the sweet spot.
+
+### Entry Shape
+
+Entries sit under the type headings Keep a Changelog defines (`### Added`, `### Changed`, `### Fixed` and family) inside their release or unreleased section. Each entry will usually take the form of a lead line naming the consumer-visible surface, followed by terse bullets naming the key entry points that were added, changed or removed.
+
+Choose the heading from the consumer's side, not the author's. Behavior that departed from a spec or a documented contract was a bug, even when it was built that way on purpose, so bringing it into line is `### Fixed`, and the lead line says so plainly: it aligns our implementation with the spec. Link the spec at the exact commit it was aligned to, never a branch, because specs move.
+
+Anything a reader can discover from the entry points themselves - signatures, field lists, wire behavior, the content of doc comments - should stay out of the entry, and so should the parameter and result types, options, constants and sentinel errors that arrive with them. Such an identifier earns its own bullet only when it is itself the change, as with a sentinel error that already-released calls start to return. The reader is a consumer deciding whether and how to upgrade, not a reviewer of the work.
 
 ## Concurrency
 

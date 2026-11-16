@@ -5,18 +5,17 @@ package core
 // interactions with the service observed by the service.
 type ModulePath string
 
-const basePath = "github.com/supabase/supabase-go/"
-
 const (
 	// ModulePathRoot is the import path for the Supabase Go SDK's convenience
-	// entry point module, composed of other domain modules.
-	ModulePathRoot ModulePath = basePath + "supabase"
+	// entry point module, composed of other domain modules. It is the
+	// repository root, and the base of every other module's path.
+	ModulePathRoot ModulePath = "github.com/supabase/supabase-go"
 
 	// ModulePathPostgrest is the import path for the Supabase Go SDK's PostgREST
 	// client module.
-	ModulePathPostgrest ModulePath = basePath + "postgrest"
+	ModulePathPostgrest ModulePath = ModulePathRoot + "/postgrest"
 
 	// ModulePathAuth is the import path for the Supabase Go SDK's Auth client
 	// module.
-	ModulePathAuth ModulePath = basePath + "auth"
+	ModulePathAuth ModulePath = ModulePathRoot + "/auth"
 )

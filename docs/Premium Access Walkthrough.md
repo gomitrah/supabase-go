@@ -49,7 +49,7 @@ Only the API is written in Go, and it uses only the SDK's `auth` module, with no
 
 ## Prerequisites
 
-- A [supported Go version](../README.md#supported-go-versions).
+- A [supported Go version](../.github/README.md#supported-go-versions).
 - The [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started).
 - Docker, or another container runtime the CLI supports, running before step 1.
 - `curl` and `jq`, for the calls in step 3.

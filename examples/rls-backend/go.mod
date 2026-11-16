@@ -8,8 +8,8 @@ module github.com/supabase/supabase-go/examples/rls-backend
 go 1.26
 
 require (
+	github.com/supabase/supabase-go v0.0.0-00010101000000-000000000000
 	github.com/supabase/supabase-go/postgrest v0.1.0-alpha.2
-	github.com/supabase/supabase-go/supabase v0.1.0-alpha.4
 )
 
 require (
@@ -18,8 +18,8 @@ require (
 )
 
 replace (
+	github.com/supabase/supabase-go => ../..
 	github.com/supabase/supabase-go/auth => ../../auth
 	github.com/supabase/supabase-go/core => ../../core
 	github.com/supabase/supabase-go/postgrest => ../../postgrest
-	github.com/supabase/supabase-go/supabase => ../../supabase
 )

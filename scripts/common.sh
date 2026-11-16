@@ -36,9 +36,9 @@ is_workspace_module() {
 # their replace directives resolve the SDK modules from the local tree.
 enumerate_adjacent_test_modules() {
   printf '%s\n' \
+    integrationtest \
     auth/integrationtest \
     postgrest/integrationtest \
-    supabase/integrationtest \
     integration-testing/testkit
 }
 
@@ -72,18 +72,81 @@ enumerate_consumer_shaped_modules() {
   printf '%s\n' telemetrytest
 }
 
-# Print the module path prefix every published module shares: a module
-# directory's full module path is this base, a slash, then the directory
-# name.
+# Print the module path the published modules share as a base: the root
+# module's path itself, and the parent of every subdirectory module's path.
 module_path_base() {
   printf '%s\n' 'github.com/supabase/supabase-go'
+}
+
+# Print a workspace module's module path. $1 is the module directory as
+# go.work lists it, with or without the leading ./: '.' for the root module,
+# which is the base itself, or a subdirectory such as core.
+module_path_for() {
+  local directory="${1#./}"
+  if [ "${directory}" = "." ]; then
+    module_path_base
+  else
+    printf '%s/%s\n' "$(module_path_base)" "${directory}"
+  fi
+}
+
+# Print what a workspace module's release tags carry before the version:
+# nothing for the root module, since its path is the repository, otherwise
+# the module directory and a slash (https://go.dev/ref/mod#vcs-version). $1
+# is the module directory.
+release_tag_prefix_for() {
+  local directory="${1#./}"
+  if [ "${directory}" != "." ]; then
+    printf '%s/' "${directory}"
+  fi
+  echo
+}
+
+# Print the Git tag that releases a workspace module version. $1 is the
+# module directory, $2 the version.
+release_tag_for() {
+  printf '%s%s\n' "$(release_tag_prefix_for "$1")" "$2"
+}
+
+# Print the first-party modules a module requires, one 'directory version'
+# line per require, the directory as go.work would list it: '.' for the root
+# module, otherwise the path below the base, such as core. $1 is the
+# requiring module's directory.
+sibling_requires_of() {
+  go mod edit -json "$1/go.mod" | jq -r --arg base "$(module_path_base)" '
+    (.Require // [])[]
+    | select(.Path == $base or (.Path | startswith($base + "/")))
+    | (if .Path == $base then "." else (.Path | ltrimstr($base + "/")) end) + " " + .Version
+  '
+}
+
+# Print the package directories of the module in the current directory, one
+# per line and relative to it ('.' for the module root): the directories the
+# go command attributes this module's packages to, so nested modules and
+# directories the go.mod ignore directive names are absent. For tools that
+# walk the filesystem rather than load packages, which would otherwise cross
+# those boundaries.
+module_package_dirs() {
+  go list -f '{{.Module.Path}} {{.ImportPath}}' ./... | awk '
+    $2 == $1 { print "."; next }
+    { print "./" substr($2, length($1) + 2) }
+  '
+}
+
+# Print the Go files in the module's package directories (module_package_dirs),
+# one per line, test files and build-constrained files included.
+module_go_files() {
+  local dir
+  module_package_dirs | while read -r dir; do
+    find "${dir}" -maxdepth 1 -type f -name '*.go'
+  done
 }
 
 # Print the pattern matching a SemVer version with the leading 'v' Go module
 # versions require and an optional pre-release suffix (vX.Y.Z or vX.Y.Z-pre):
 # the form versions take in changelog headings, dep=version pin arguments and
-# the version half of a '<module>/<version>' tag. Extended regular expression
-# syntax, anchored at both ends.
+# the version half of a release tag. Extended regular expression syntax,
+# anchored at both ends.
 semver_version_pattern() {
   printf '%s\n' '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
 }
@@ -94,6 +157,16 @@ semver_version_pattern() {
 # version as its first group.
 version_heading_pattern() {
   printf '%s\n' '^## `(v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?)` \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$'
+}
+
+# Print the pattern matching a version heading in tag form,
+# '## `<prefix>/vX.Y.Z` (YYYY-MM-DD)': a release a module made before it
+# moved, under an earlier tag prefix, kept in its changelog as history.
+# Such a heading declares no version of the module's current path, so
+# declared_module_versions never prints it. Same syntax as
+# version_heading_pattern.
+earlier_prefix_version_heading_pattern() {
+  printf '%s\n' '^## `([A-Za-z0-9._-]+/)v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?` \([0-9]{4}-[0-9]{2}-[0-9]{2}\)$'
 }
 
 # Print the versions a published module's changelog declares, one per
@@ -132,15 +205,15 @@ resolve_release_commit() {
 
 # Print the releases the remote's tags declare at a commit, one
 # 'module version' line per workspace module (per the current checkout's
-# go.work) whose '<module>/<version>' tag on origin points at that commit,
-# in go.work order. Reads origin rather than local tags, so the result
+# go.work) whose release tag on origin points at that commit, in go.work
+# order. Reads origin rather than local tags, so the result
 # reflects what the release-tags workflow actually pushed, and prints
 # nothing when no release tag points at the commit - callers decide whether
 # that is an error. Returns non-zero when a module carries several tags at
 # the commit or a tag's version half is not SemVer. $1 is the full commit
 # SHA.
 released_versions_at() {
-  local commit_sha="$1" remote_tags module version
+  local commit_sha="$1" remote_tags module prefix version
   remote_tags="$(git ls-remote --tags origin \
     | awk -v sha="${commit_sha}" '
         $1 == sha { tag = $2; sub(/^refs\/tags\//, "", tag); sub(/\^\{\}$/, "", tag); print tag }
@@ -148,14 +221,15 @@ released_versions_at() {
     | sort -u)"
   for module in $(enumerate_workspace_modules); do
     module="${module#./}"
-    version="$(printf '%s\n' "${remote_tags}" | sed -n "s|^${module}/||p")"
+    prefix="$(release_tag_prefix_for "${module}")"
+    version="$(printf '%s\n' "${remote_tags}" | sed -n "s|^${prefix}\(v[^/]*\)$|\1|p")"
     [ -n "${version}" ] || continue
     if [ "$(printf '%s\n' "${version}" | wc -l)" -ne 1 ]; then
-      echo "Several ${module}/ tags on origin point at ${commit_sha}: $(printf '%s\n' "${version}" | tr '\n' ' ')" >&2
+      echo "Several release tags of ${module} on origin point at ${commit_sha}: $(printf '%s\n' "${version}" | tr '\n' ' ')" >&2
       return 1
     fi
     if ! printf '%s' "${version}" | grep -Eq "$(semver_version_pattern)"; then
-      echo "Tag ${module}/${version} on origin points at ${commit_sha} but does not carry a SemVer version." >&2
+      echo "Tag $(release_tag_for "${module}" "${version}") on origin points at ${commit_sha} but does not carry a SemVer version." >&2
       return 1
     fi
     printf '%s %s\n' "${module}" "${version}"

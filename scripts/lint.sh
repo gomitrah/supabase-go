@@ -47,24 +47,36 @@ trap 'rm -rf "${toolbin}"' EXIT
 # - G117, secrets in marshaled structs: an auth SDK marshals credentials by contract, as sign-in payloads and as the session state a store persists.
 # Test files are scanned, as every other check scans them. A finding that is
 # the design is suppressed where it stands, and a suppression must name its
-# rule and its reason. gosec expands ./... by walking the filesystem, which
-# reaches a published module's nested integrationtest module, so that
-# directory is excluded here and scanned as a module of its own below.
-gosec_flags=(-quiet -tests -exclude=G104,G117 -exclude-dir=integrationtest -nosec-require-rules -nosec-require-justification)
+# rule and its reason. -terse rather than -quiet, because a quiet run that
+# finds nothing passes even when packages failed to load.
+gosec_flags=(-terse -tests -exclude=G104,G117 -nosec-require-rules -nosec-require-justification)
+
+# Run gosec over the package directories given, printing its text report.
+# gosec skips an argument it cannot find without failing, so the run fails
+# here when its JSON report counts no files analyzed.
+run_gosec() {
+  local report="${toolbin}/gosec-report.json"
+  "${toolbin}/gosec" "${gosec_flags[@]}" -fmt=json -out="${report}" -stdout -verbose=text "$@"
+  if ! jq -e '.Stats.files > 0' "${report}" > /dev/null; then
+    echo "gosec analyzed no files." >&2
+    return 1
+  fi
+}
 
 # revive is given the repository's configuration by path. Left to find one
 # itself, it reads a revive.toml from the contributor's home or XDG config
 # directory, and the local gate would differ from CI's.
 revive_config="$(pwd)/revive.toml"
 
+# gofumpt, gosec and revive expand ./... by walking the filesystem, which does
+# not stop at nested modules or honor a go.mod ignore directive, so each is
+# handed the module's own Go files or package directories instead. The
+# go-package-graph tools take ./... as the go command reads it.
 for module in ${workspace_modules}; do
   echo "==> ${module}"
   (
     cd "${module}"
-    # gofumpt walks the filesystem and, unlike the go command, does not stop at
-    # nested module boundaries, so drop any node_modules hits (npm tooling can
-    # ship third-party .go files, e.g. cspell's flatted dependency).
-    unformatted="$("${toolbin}/gofumpt" -l . | grep -v /node_modules/ || true)"
+    unformatted="$(module_go_files | xargs "${toolbin}/gofumpt" -l)"
     if [ -n "${unformatted}" ]; then
       echo "gofumpt would reformat:"
       echo "${unformatted}"
@@ -75,36 +87,34 @@ for module in ${workspace_modules}; do
     "${toolbin}/errcheck" -blank ./...
     "${toolbin}/shadow" ./...
     "${toolbin}/reflectvaluecompare" ./...
-    "${toolbin}/gosec" "${gosec_flags[@]}" ./...
-    "${toolbin}/revive" -config "${revive_config}" -set_exit_status ./...
+    run_gosec $(module_package_dirs)
+    "${toolbin}/revive" -config "${revive_config}" -set_exit_status $(module_package_dirs)
     # sdkchecker's analyzers apply to the published modules' non-test files.
     "${toolbin}/sdkchecker" -test=false ./...
   )
 done
 
 # The adjacent test modules and example programs sit outside the workspace, so
-# the loop above never reaches them. GOWORK=off lets the go-package-graph
-# tools resolve each one the way its own replace directives declare; gofumpt
-# and revive walk the filesystem and need no module resolution (and these
-# directories hold no node_modules or nested modules, so neither needs its
-# exclusion dance).
+# the loop above never reaches them. GOWORK=off lets the go command resolve
+# each one the way its own replace directives declare.
 for module in $(enumerate_adjacent_test_modules) $(enumerate_example_modules); do
   echo "==> ${module}"
   (
     cd "${module}"
-    unformatted="$("${toolbin}/gofumpt" -l .)"
+    export GOWORK=off
+    unformatted="$(module_go_files | xargs "${toolbin}/gofumpt" -l)"
     if [ -n "${unformatted}" ]; then
       echo "gofumpt would reformat:"
       echo "${unformatted}"
       exit 1
     fi
-    GOWORK=off go vet ./...
-    GOWORK=off "${toolbin}/staticcheck" ./...
-    GOWORK=off "${toolbin}/errcheck" -blank ./...
-    GOWORK=off "${toolbin}/shadow" ./...
-    GOWORK=off "${toolbin}/reflectvaluecompare" ./...
-    GOWORK=off "${toolbin}/gosec" "${gosec_flags[@]}" ./...
-    "${toolbin}/revive" -config "${revive_config}" -set_exit_status ./...
+    go vet ./...
+    "${toolbin}/staticcheck" ./...
+    "${toolbin}/errcheck" -blank ./...
+    "${toolbin}/shadow" ./...
+    "${toolbin}/reflectvaluecompare" ./...
+    run_gosec $(module_package_dirs)
+    "${toolbin}/revive" -config "${revive_config}" -set_exit_status $(module_package_dirs)
   )
 done
 

@@ -7,7 +7,7 @@ The following document will be helpful:
 
 | Document | For |
 | -------- | --- |
-| [`CHANGELOG.md`](../../../CHANGELOG.md) | The repository's changelog conventions: the deviations from Keep a Changelog, the unreleased-heading rules, the humans-and-machines philosophy and the entry shape with its exemplar. |
+| [`DEVELOPMENT.md`](../../../DEVELOPMENT.md#changelogs) | The repository's changelog conventions: the deviations from Keep a Changelog, the unreleased-heading rules, the humans-and-machines philosophy and the entry shape with its exemplar. |
 
 Each published module owns a `CHANGELOG.md` beside its code, and a user-facing change adds its entry alongside the change it describes.
 

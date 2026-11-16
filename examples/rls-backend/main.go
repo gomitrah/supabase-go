@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/supabase/supabase-go"
 	"github.com/supabase/supabase-go/postgrest"
-	"github.com/supabase/supabase-go/supabase"
 )
 
 // practiceLog is a row of the practice_logs table.

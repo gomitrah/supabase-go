@@ -101,12 +101,13 @@ echo "==> starting local stack (pinned CLI $("${SUPABASE_CLI}" --version))"
 # code whose posture holds it.
 eval "$("${SUPABASE_CLI}" --workdir "${project_directory}" status -o env)"
 
-# The modules with an adjacent integrationtest module - deliberately a curated
-# subset of the workspace (core has none), so this is NOT derived from go.work
-# like the build/lint/vuln lists are. Each integrationtest directory is its own
-# non-published module outside the workspace, hence GOWORK=off with its replace
-# directives resolving the SDK modules from the local tree.
-modules=(supabase postgrest auth)
+# The modules with an adjacent integrationtest module, the root module as '.' -
+# deliberately a curated subset of the workspace (core has none), so this is
+# NOT derived from go.work like the build/lint/vuln lists are. Each
+# integrationtest directory is its own non-published module outside the
+# workspace, hence GOWORK=off with its replace directives resolving the SDK
+# modules from the local tree.
+modules=(. postgrest auth)
 
 # Every package in an integrationtest module sits under one of two posture
 # directories, and the stack's keys reach a package by that posture alone. An

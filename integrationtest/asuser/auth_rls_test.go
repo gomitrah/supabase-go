@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/supabase/supabase-go"
 	"github.com/supabase/supabase-go/integration-testing/testkit"
 	"github.com/supabase/supabase-go/postgrest"
-	"github.com/supabase/supabase-go/supabase"
 )
 
 // practiceLog maps a row of the public.practice_logs table, whose Row Level

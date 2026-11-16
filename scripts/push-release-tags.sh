@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Push the release tags a merged release PR declared: for every published
 # module whose changelog's newest version heading has no corresponding
-# '<module>/<version>' tag on the remote, create that tag at HEAD and push
-# it, in dependency order so a consumer never resolves a tagged module whose
+# release tag on the remote, create that tag at HEAD and push it, in
+# dependency order so a consumer never resolves a tagged module whose
 # sibling requirement is still untagged. Existing tags are left alone, so
 # re-running at the same commit pushes exactly the tags still missing and an
 # ordinary (non-release) commit is a no-op. The release-tags workflow runs
@@ -13,20 +13,12 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 workspace_modules="$(enumerate_workspace_modules)"
 
-module_base="$(module_path_base)"
-
 echo "Push Release Tags..."
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "The working tree has staged or unstaged changes; run this from a clean checkout of the release commit." >&2
   exit 1
 fi
-
-sibling_requires() {
-  go mod edit -json "$1/go.mod" \
-    | jq -r --arg base "${module_base}/" \
-      '.Require[]? | select(.Path | startswith($base)) | .Path | ltrimstr($base)'
-}
 
 # Order the modules so every module follows the siblings it requires, in
 # rounds of "everything whose requirements are already ordered". go.work
@@ -39,7 +31,7 @@ while [ -n "${remaining// /}" ]; do
   deferred=""
   for module in ${remaining}; do
     ready="yes"
-    for sibling in $(sibling_requires "${module}"); do
+    for sibling in $(sibling_requires_of "${module}" | awk '{ print $1 }'); do
       case " ${ordered} " in
         *" ${sibling} "*) ;;
         *) ready="no" ;;
@@ -67,7 +59,7 @@ for module in ${ordered}; do
     note "- \`${module}\`: no released version declared, nothing to tag."
     continue
   fi
-  tag="${module}/${version}"
+  tag="$(release_tag_for "${module}" "${version}")"
   if git ls-remote --exit-code origin "refs/tags/${tag}" > /dev/null 2>&1; then
     note "- \`${module}\`: ${version} is already tagged."
     continue

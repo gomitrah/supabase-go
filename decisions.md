@@ -78,7 +78,7 @@ The workspace's use directives supply the actual source for every in-repo build,
 **Why**:  
 Every in-repo build must compile a module against its siblings' current source - unreleased changes included - rather than the released versions its require lines name, which needs either `replace` directives or a workspace.
 `go.work` is the purpose-built mechanism (Go 1.18+) and gives a cleaner separation of "what we publish to customers" (the `go.mod` files, free of dev-only redirects) from "how we develop locally" (one workspace file), stating the wiring once instead of repeating `replace … => ../core` in every consumer.
-Committing it is Go-team-endorsed for monorepos ([golang/go#53502](https://github.com/golang/go/issues/53502) declined a "never commit" warning) and safe for consumers, since `go.work` never enters a published module zip and `go get` ignores it.
+Committing it is Go-team-endorsed for monorepos ([golang/go#53502](https://github.com/golang/go/issues/53502) declined a "never commit" warning) and safe for consumers, since the go command reads a workspace only from the directory it runs in and its parents, so the copy inside the root module's zip is inert and `go get` ignores it.
 The workspace hazard - the overlay masking a missing or wrong `require`, a defect only consumer builds would surface - is guarded by [`scripts/check-module-paths.sh`](scripts/check-module-paths.sh) (first-party paths a consumer could not resolve) and [`scripts/check-release-consistency.sh`](scripts/check-release-consistency.sh) (versions no sibling changelog declares), with the remainder resting on review.
 
 ## Ignore go.work.sum rather than commit it
@@ -166,7 +166,6 @@ Every `actions/setup-go` step sets `cache: false`.
 Caching that earns its place is an explicit `actions/cache` step with a reasoned key, as the integration-test job does for the Supabase CLI binary.
 
 **Why**:  
-The implicit cache keys on a root `go.mod`, which this `go.work`-rooted repository does not have, so its restore has never succeeded here.
 The published modules are dependency-free, leaving a module cache little to restore, and the action's job-agnostic cache key would hand heterogeneous jobs one shared, first-save-wins entry.
 
 ## Regular dependency update cadence is manual, not driven by dependabot
@@ -205,21 +204,21 @@ The single seam matches the dominant Go convention. Google's API libraries and S
 Handing out the interface rather than the `*http.Client` stops the configured transport being swapped out through the accessor - a caller holding the concrete client could set `Transport = nil` and silently disable auth, or race on it - and it keeps the `configuration` public surface small, which is part of the `v1` promise.
 The interface is named `HTTPClient` with a single `Do` method, following AWS SDK v2's interface of the same name and shape. `Do` is chosen because `*http.Client` already has that method, so the standard client satisfies the interface with no adapter.
 
-## No module is served from the repository root
+## The entry module is the repository root, and the GitHub README lives in `.github/`
 
 **What**:  
-The repository root carries no `go.mod`.
-Every published module lives in a subdirectory named after its package - `auth/`, `core/`, `postgrest/` and `supabase/`, the convenience entry point.
-Consumers import the root client as `github.com/supabase/supabase-go/supabase`, never `github.com/supabase/supabase-go` itself.
-No Go source file lives outside a module directory.
-[`scripts/check-module-paths.sh`](scripts/check-module-paths.sh) enforces both the absence of a root `go.mod` and that containment.
+The `supabase` package is the root module, `github.com/supabase/supabase-go`, tagged with bare versions, and every other published module lives in a subdirectory named after its package.
+The repository README is [`.github/README.md`](.github/README.md), with no README at the root.
+[`scripts/check-module-paths.sh`](scripts/check-module-paths.sh) holds the root module's Go files to the root directory, since its package patterns reach every directory that is not a nested module.
 
 **Why**:  
-pkg.go.dev renders the README it finds in a module's own directory, so a root-served module's documentation page carries the repository README - GitHub-audience content (status banner, module table, contribution pointers) that has no place in consumer API documentation.
-The go command still treats a repository root without `go.mod` as an implicit module whose `go.mod` it synthesizes ([Go Modules Reference](https://go.dev/ref/mod#non-module-compat)), so anyone's `go get` of the root path has the proxy cache a pseudo-version of it, README included.
-pkg.go.dev refuses a module that contains no packages ([pkgsite](https://github.com/golang/pkgsite/blob/b0feb34c6d91fdea7d471ec6026383042ba8aa12/internal/fetch/fetch.go#L305)), so while every Go file sits inside a module directory that pseudo-version stays an inert proxy entry, the README never renders there and each module's page stays scoped to what that module ships.
-A single stray Go file at the root would hand the synthesized module a package and pkg.go.dev a page, and a root `go.mod` would make that module explicit with every stray file legitimately inside it, so the check refuses both.
-The cost accepted is a doubled segment in the entry module's import path (`supabase-go/supabase`), and in exchange the layout is uniform: every published module follows the one directory-per-module shape, with no special root case in scripts, docs or the workspace.
+A Go developer weighing or adopting this SDK expects its repository path to be the module, so that `go get github.com/supabase/supabase-go` fetches it and pkg.go.dev documents it at that path, listing every nested module beneath it ([pkgsite](https://github.com/golang/pkgsite/blob/dc2757fc6e92e835125dd6e0d6a8d4fea85aba05/internal/frontend/directory.go#L85)), and the import path then repeats nothing.
+With every module in a subdirectory, that path fetched a module with no packages, pkg.go.dev returned 404 and the entry point read `supabase-go/supabase`.
+pkg.go.dev renders whatever README sits in the module's own directory ([pkgsite](https://github.com/golang/pkgsite/blob/dc2757fc6e92e835125dd6e0d6a8d4fea85aba05/internal/fetch/readme.go#L21)), so a root README written for GitHub readers would lead the API documentation.
+GitHub surfaces `.github/README.md` ahead of a root README ([About READMEs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)) and pkgsite never reads it, leaving `doc.go` as the module's only voice on pkg.go.dev.
+The repository is the module's source before it is a GitHub landing page, so the README accommodates the module and not the reverse.
+`.gitattributes export-ignore` could not keep a root README out of the zip instead: the go command disables it for stable zip hashes ([golang/go#27153](https://github.com/golang/go/issues/27153)).
+Versions `v0.1.0-alpha.1` to `v0.1.0-alpha.4` remain published as `github.com/supabase/supabase-go/supabase`.
 
 ## The postgrest module is Supabase-agnostic in code but not a supported general-purpose client
 
@@ -533,7 +532,7 @@ The panic survives only where module identity is present and contradicts the cal
 **What**:  
 Every floor-carrying artefact - the published `go.mod` directives, [`go.work`](go.work), the consumer-shaped modules outside the workspace and [CI](.github/workflows/ci.yml)'s floor matrix legs - carries the oldest Go major release still supported by the Go project, raised in lockstep by [`scripts/raise-consumer-floor.sh`](scripts/raise-consumer-floor.sh).
 This floor should be raised opportunistically after each Go release rather than on release day.
-The policy is stated consumer-facing in [our root `README.md`](README.md) ("Supported Go versions").
+The policy is stated consumer-facing in [our `README.md`](.github/README.md) ("Supported Go versions").
 
 **Why**:  
 The standard library is statically linked into every consumer binary and only the two newest majors receive security fixes, so a floor inside Go's support window never claims compatibility with toolchains whose binaries cannot be patched.

@@ -2,8 +2,8 @@ name: Release Tags
 
 # Runs on every push to main and is a no-op unless the pushed commit declares
 # a release: a merged release PR leaves each released module's changelog with
-# a newest version heading that has no corresponding '<module>/<version>' tag
-# yet, and this workflow pushes exactly those missing tags at the pushed
+# a newest version heading that has no corresponding release tag yet, and
+# this workflow pushes exactly those missing tags at the pushed
 # commit. Existing tags are never touched, so re-running a failed run (which
 # executes at the original commit) completes a partial tag push. See
 # RELEASING.md for the procedure and the fallbacks.

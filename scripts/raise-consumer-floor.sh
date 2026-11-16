@@ -15,14 +15,9 @@ ci_workflow=".github/workflows/ci.yml"
 # non-published consumer-shaped modules, whose go lines must be at least the
 # published modules' because they require them (go.dev/ref/mod#go-mod-file-go).
 floor_gomods="$(
-  for module in ${workspace_modules}; do
+  for module in ${workspace_modules} $(enumerate_consumer_shaped_modules); do
     printf '%s\n' "${module#./}/go.mod"
   done
-  printf '%s\n' \
-    */integrationtest/go.mod \
-    examples/*/go.mod \
-    telemetrytest/go.mod \
-    integration-testing/testkit/go.mod
 )"
 
 echo "Raise Consumer Floor..."

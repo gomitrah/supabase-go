@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/supabase/supabase-go"
 	"github.com/supabase/supabase-go/integration-testing/testkit"
 	"github.com/supabase/supabase-go/postgrest"
-	"github.com/supabase/supabase-go/supabase"
 )
 
 // TestRootClientSelect selects seeded rows through the root client against

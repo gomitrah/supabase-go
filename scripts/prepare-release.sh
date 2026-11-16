@@ -12,17 +12,16 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 workspace_modules="$(enumerate_workspace_modules)"
 
-module_base="$(module_path_base)"
 zero_pseudo_version="v0.0.0-00010101000000-000000000000"
 
 if [ "$#" -lt 2 ]; then
   echo "usage: $0 <module> <version> [dep=version ...]" >&2
-  echo "  module      a published module directory listed in go.work, e.g. core" >&2
+  echo "  module      a published module directory listed in go.work, e.g. core, or . for the root module" >&2
   echo "  version     the version to release, e.g. v0.1.0-alpha.1" >&2
   echo "  dep=version a sibling require to pin, e.g. core=v0.1.0-alpha.1" >&2
   exit 2
 fi
-module_dir="$1"; shift
+module_dir="${1#./}"; shift
 version="$1"; shift
 
 echo "Prepare Release..."
@@ -94,8 +93,8 @@ fi
 for pair in "$@"; do
   dep="${pair%%=*}"
   dep_version="${pair#*=}"
-  echo "==> pin ${module_base}/${dep} @ ${dep_version}"
-  go mod edit -require="${module_base}/${dep}@${dep_version}" "${module_dir}/go.mod"
+  echo "==> pin $(module_path_for "${dep}") @ ${dep_version}"
+  go mod edit -require="$(module_path_for "${dep}")@${dep_version}" "${module_dir}/go.mod"
 done
 
 # A sibling still at the zero pseudo-version means a missing dep=version
@@ -125,7 +124,8 @@ mv "${changelog}.tmp" "${changelog}"
 # Only a recorded release, or the zero pseudo-version of a module that never
 # recorded one, is raised: any other version outranks every release on
 # purpose, as telemetrytest's fabricated requires do.
-module_path="${module_base}/${module_dir}"
+module_path="$(module_path_for "${module_dir}")"
+release_tag="$(release_tag_for "${module_dir}" "${version}")"
 for consumer_module in $(enumerate_consumer_shaped_modules); do
   recorded="$(go mod edit -json "${consumer_module}/go.mod" \
     | jq -r --arg path "${module_path}" '.Require[]? | select(.Path == $path) | .Version')"
@@ -161,11 +161,11 @@ echo
 echo "Review the changes, then run:"
 echo
 echo "  git add$(printf ' %s' ${changed_paths})"
-echo "  git commit --message='Prepare release ${module_dir}/${version}.'"
+echo "  git commit --message='Prepare release ${release_tag}.'"
 echo
 echo "Prepare any further modules the same way, then before pushing the branch"
 echo "and opening the release PR, run the pre-flight check:"
 echo
 echo "  ./scripts/check-release-consistency.sh"
 echo
-echo "When the PR merges, the release-tags workflow pushes ${module_dir}/${version}."
+echo "When the PR merges, the release-tags workflow pushes ${release_tag}."

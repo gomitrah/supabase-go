@@ -21,9 +21,12 @@ Steps 1, 2 and 4 are manually handled by a human operator (perhaps with AI assis
 ## Versions and tags
 
 A module's version lives in its Git tags.
-Tags for a module in a subdirectory [are path-prefixed](https://go.dev/ref/mod#vcs-version) - module `github.com/supabase/supabase-go/auth` at `v0.1.0-alpha.1` means tag `auth/v0.1.0-alpha.1` - while `require` lines always carry the plain version, never the tag prefix, because they already include the module name.
+Tags for a module in a subdirectory [are path-prefixed](https://go.dev/ref/mod#vcs-version) - module `github.com/supabase/supabase-go/auth` at `v0.1.0-alpha.1` means tag `auth/v0.1.0-alpha.1` - while the root module `github.com/supabase/supabase-go`, whose directory is the repository itself, is tagged with the bare version, `v0.1.0-alpha.1`.
+`require` lines always carry the plain version, never the tag prefix, because they already include the module name.
+The scripts name the root module `.`, as [`go.work`](go.work) lists it, and the subdirectory modules by directory.
+Versions `v0.1.0-alpha.1` to `v0.1.0-alpha.4` of the root module were published from the `supabase/` subdirectory as `github.com/supabase/supabase-go/supabase`, under `supabase/`-prefixed tags and remain resolvable there.
 
-In the tree, the newest version heading in a module's [changelog](CHANGELOG.md) declares that module's current version: `scripts/prepare-release.sh` writes it and [the Release Tags workflow](.github/workflows/release-tags.yml) reads it to know what to tag.
+In the tree, the newest version heading in a module's [changelog](DEVELOPMENT.md#changelogs) declares that module's current version: `scripts/prepare-release.sh` writes it and [the Release Tags workflow](.github/workflows/release-tags.yml) reads it to know what to tag.
 Choose each module's next version by hand from the entries under the `## Unreleased` heading of its changelog, which accumulate as changes merge, and from `./scripts/api-diff.sh <module>`, which lists the module's public API changes since its newest declared version.
 An incompatible change in that list with no changelog entry is an entry missing.
 A module whose changelog has no `## Unreleased` section has nothing to release, and the prepare script refuses to prepare it.
@@ -32,7 +35,7 @@ We treat `v1` as a long-term commitment to backward compatibility, in line with 
 
 ## Dependency order
 
-Prepare `core` first, then `auth` and `postgrest` in either order, then `supabase`.
+Prepare `core` first, then `auth` and `postgrest` in either order, then the root module.
 A dependent module pins its sibling requires to the versions being released, and a pin may only name a version the sibling's changelog already declares - prepare the modules out of order and the pre-flight check below fails.
 Tag pushes order themselves: the workflow derives dependency order from the sibling requires.
 
@@ -46,7 +49,7 @@ Tag pushes order themselves: the workflow derives dependency order from the sibl
    ./scripts/prepare-release.sh core v0.1.0-alpha.1
    ./scripts/prepare-release.sh auth v0.1.0-alpha.1 core=v0.1.0-alpha.1
    ./scripts/prepare-release.sh postgrest v0.1.0-alpha.1 core=v0.1.0-alpha.1
-   ./scripts/prepare-release.sh supabase v0.1.0-alpha.1 core=v0.1.0-alpha.1 auth=v0.1.0-alpha.1 postgrest=v0.1.0-alpha.1
+   ./scripts/prepare-release.sh . v0.1.0-alpha.1 core=v0.1.0-alpha.1 auth=v0.1.0-alpha.1 postgrest=v0.1.0-alpha.1
    ```
 
    For each module the script refuses to run unless the tree is clean and the module's changelog has entries under `## Unreleased`, pins the sibling `require` lines to the given `dep=version` arguments (aborting if any sibling is left at the zero pseudo-version, the mark of a forgotten pin), stamps the changelog - the `## Unreleased` heading becomes ``## `<version>` (<date>)`` - then raises every non-published module's require of the module to the version being released and re-tidies them (the integration tests, the examples and `telemetrytest`) with `GOWORK=off`, so every module's recorded versions stay consistent with the new graph and CI stays green.
@@ -68,7 +71,7 @@ Tag pushes order themselves: the workflow derives dependency order from the sibl
 
 5. :technologist: Merge.
 
-6. :robot: The release-tags workflow runs on the landing commit, finds each released module's newest declared version untagged and pushes the missing `<module>/<version>` tags in dependency order.
+6. :robot: The release-tags workflow runs on the landing commit, finds each released module's newest declared version untagged and pushes the missing release tags in dependency order.
    Its run summary lists what it tagged - or states plainly that it detected no release, which is what every ordinary merge to `main` shows.
    If the run fails or its summary surprises you, see [Troubleshooting](#troubleshooting).
 
@@ -105,7 +108,7 @@ The first two entries below are the expected failures and need no recovery: one 
 Every other entry concerns a merged release PR, which puts `main` into a state that cannot regress: its landing commit permanently declares the release, through each released module's newest changelog heading and pinned `require` lines.
 
 Tags are the only artifact that can be missing.
-Every recovery below therefore drives at one end state: for each released module, a tag `<module>/<version>` exists on the GitHub remote, pointing at the landing commit.
+Every recovery below therefore drives at one end state: for each released module, its release tag exists on the GitHub remote, pointing at the landing commit.
 No recovery path modifies `main`, none touches an existing tag and the tag script skips whatever already exists, so each path is safe to attempt and safe to repeat.
 A consumer who fetches while only some of the tags exist sees a transient resolution failure, healed the moment the remaining tags land.
 
@@ -174,21 +177,21 @@ If GitHub recovers and no run ever appears, the push event was dropped and will 
 
 ### The script stopped at a stale local tag
 
-State: a local run of `push-release-tags.sh` exited with "Local tag `<module>/<version>` exists but does not point at HEAD".
+State: a local run of `push-release-tags.sh` exited with "Local tag `<tag>` exists but does not point at HEAD".
 Your clone already carried that tag name pointing at some other commit, and pushing it would have published the wrong content, so the script refused.
 Tags it pushed before reaching this module exist on the GitHub remote, while this module's tag and any after it are still missing.
 
 Fix: delete the stale local tag, then re-run the script from the same checkout:
 
 ```bash
-git tag -d <module>/<version>
+git tag -d <tag>
 ./scripts/push-release-tags.sh
 ```
 
 ### Pushing a tag by hand
 
 When `go` or `jq` is unavailable on the machine at hand, or the script itself is misbehaving, plain git does the same work minus the checks.
-For each tag still missing from the GitHub remote, in dependency order (`core`, then `auth` and `postgrest`, then `supabase`):
+For each tag still missing from the GitHub remote, in dependency order (`core`, then `auth` and `postgrest`, then the root module):
 
 ```bash
 git tag auth/v0.1.0-alpha.1 <landing-commit>

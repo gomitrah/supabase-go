@@ -17,7 +17,6 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 workspace_modules="$(enumerate_workspace_modules)"
 
-module_base="$(module_path_base)"
 zero_pseudo_version="v0.0.0-00010101000000-000000000000"
 
 echo "Check Release Consistency..."
@@ -38,7 +37,7 @@ for module in ${workspace_modules}; do
   fi
 
   # The Unreleased section is optional, but when present it opens the
-  # changelog and holds entries (see the root CHANGELOG.md).
+  # changelog and holds entries (see "Changelogs" in DEVELOPMENT.md).
   unreleased_headings="$(grep -cx '## Unreleased' "${changelog}" || true)"
   if [ "${unreleased_headings}" -gt 1 ]; then
     fail "${changelog} carries more than one '## Unreleased' heading."
@@ -54,10 +53,20 @@ for module in ${workspace_modules}; do
   fi
 
   # A level-two heading that is neither Unreleased nor a well-formed version
-  # stamp would be skipped by the release automation, silently.
-  malformed="$(grep -E '^## ' "${changelog}" | grep -vx '## Unreleased' | grep -Ev "$(version_heading_pattern)" || true)"
+  # stamp would be skipped by the release automation, silently. The one
+  # other heading allowed is a version in tag form under an earlier tag
+  # prefix, a release from before the module moved. Under the module's
+  # current prefix it is a version heading in the wrong form.
+  malformed="$(grep -E '^## ' "${changelog}" \
+    | grep -vx '## Unreleased' \
+    | grep -Ev "$(version_heading_pattern)" \
+    | grep -Ev "$(earlier_prefix_version_heading_pattern)" || true)"
   if [ -n "${malformed}" ]; then
     fail "${changelog} carries malformed version headings: ${malformed}"
+  fi
+  misfiled="$(grep -E "$(earlier_prefix_version_heading_pattern)" "${changelog}" | grep -F "## \`$(release_tag_prefix_for "${module}")v" || true)"
+  if [ -n "${misfiled}" ]; then
+    fail "${changelog} heads a version with the module's own tag prefix, which the release automation would skip: ${misfiled}"
   fi
 
   duplicates="$(declared_module_versions "${module}" | sort | uniq -d)"
@@ -72,9 +81,6 @@ done
 # version.
 for module in ${workspace_modules}; do
   module="${module#./}"
-  sibling_requires="$(go mod edit -json "${module}/go.mod" \
-    | jq -r --arg base "${module_base}/" \
-      '.Require[]? | select(.Path | startswith($base)) | (.Path | ltrimstr($base)) + " " + .Version')"
   while read -r sibling required_version; do
     [ -n "${sibling}" ] || continue
     if [ "${required_version}" = "${zero_pseudo_version}" ]; then
@@ -84,7 +90,7 @@ for module in ${workspace_modules}; do
     elif ! declared_module_versions "${sibling}" | grep -qx "${required_version}"; then
       fail "${module}/go.mod requires ${sibling}@${required_version}, which ${sibling}/CHANGELOG.md never declares - a typo'd pin, or a release prepared out of dependency order."
     fi
-  done <<< "${sibling_requires}"
+  done < <(sibling_requires_of "${module}")
 done
 
 # A non-published module records each released sibling it requires at that
@@ -97,9 +103,6 @@ done
 # telemetrytest's fabricated versions are a different invariant, checked
 # next.
 for module in $(enumerate_consumer_shaped_modules); do
-  sibling_requires="$(go mod edit -json "${module}/go.mod" \
-    | jq -r --arg base "${module_base}/" \
-      '.Require[]? | select(.Path | startswith($base)) | select(.Version | endswith("-fabricated") | not) | (.Path | ltrimstr($base)) + " " + .Version')"
   while read -r sibling required_version; do
     [ -n "${sibling}" ] || continue
     is_workspace_module "${sibling}" || continue
@@ -108,7 +111,7 @@ for module in $(enumerate_consumer_shaped_modules); do
     if [ "${required_version}" != "${newest_declared}" ]; then
       fail "${module}/go.mod requires ${sibling}@${required_version}, not its newest declared ${newest_declared} - a release prepared without scripts/prepare-release.sh raising it, or a module written since."
     fi
-  done <<< "${sibling_requires}"
+  done < <(sibling_requires_of "${module}" | grep -v -- '-fabricated$' || true)
 done
 
 # telemetrytest's fabricated versions must outrank every declared version of
@@ -116,9 +119,6 @@ done
 # real version and the consumer-view telemetry check would assert the wrong
 # header. The fabricated scheme keeps a major.minor of 1.999, so comparing
 # major then minor is sufficient.
-fabricated_requires="$(go mod edit -json telemetrytest/go.mod \
-  | jq -r --arg base "${module_base}/" \
-    '.Require[]? | select(.Version | endswith("-fabricated")) | (.Path | ltrimstr($base)) + " " + .Version')"
 while read -r sibling fabricated_version; do
   [ -n "${sibling}" ] || continue
   newest_declared="$(declared_module_versions "${sibling}" | head -n 1)"
@@ -135,7 +135,7 @@ while read -r sibling fabricated_version; do
   if [ "${outranks}" != "yes" ]; then
     fail "telemetrytest requires ${sibling}@${fabricated_version}, which no longer outranks the declared ${newest_declared} - raise the fabricated scheme (see telemetrytest/go.mod)."
   fi
-done <<< "${fabricated_requires}"
+done < <(sibling_requires_of telemetrytest | grep -- '-fabricated$' || true)
 
 if [ "${failures}" -gt 0 ]; then
   echo "${failures} release-consistency check(s) failed." >&2

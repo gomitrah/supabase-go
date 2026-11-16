@@ -45,7 +45,7 @@ Only the API is written in Go, and it holds only the code the demonstration need
 
 ## Prerequisites
 
-- A [supported Go version](../README.md#supported-go-versions).
+- A [supported Go version](../.github/README.md#supported-go-versions).
 - The [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), version 2.79.0 or later for `supabase db query`.
 - Docker, or another container runtime the CLI supports, running before step 1.
 - `curl` and `jq`, for the calls in step 4.
@@ -111,7 +111,7 @@ In the same folder, create a Go module and add the SDK:
 
 ```bash
 go mod init example.com/practice-logs
-go get github.com/supabase/supabase-go/supabase
+go get github.com/supabase/supabase-go
 ```
 
 `go mod init` will suggest running `go mod tidy`, because it takes the `supabase` folder as a sign of an existing project.
@@ -135,8 +135,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/supabase/supabase-go"
 	"github.com/supabase/supabase-go/postgrest"
-	"github.com/supabase/supabase-go/supabase"
 )
 
 // practiceLog is a row of the practice_logs table.

@@ -9,6 +9,12 @@ Refer to [GitHub `../DEVELOPMENT.md`](https://github.com/supabase/supabase-go/bl
 
 ## Unreleased
 
+### Changed
+
+`ModulePathRoot` now holds `github.com/supabase/supabase-go`, the new import path of the SDK's `supabase` package, where before it held `github.com/supabase/supabase-go/supabase`.
+
+If your code still imports `github.com/supabase/supabase-go/supabase`, calling `supabase.New` works with earlier versions of `core`, but with this one it panics with the message `telemetry: no client name registered for module "github.com/supabase/supabase-go"`. To fix it, change that import to `github.com/supabase/supabase-go` and run `go mod tidy`. The package is still named `supabase`, so the rest of your code stays the same.
+
 ### Fixed
 
 Aligns the `X-Client-Info` header every client sends with the [cross-SDK client info spec](https://github.com/supabase/sdk/blob/2d2e0ed57ff5a4846af84cd3400fd6f7b8109ba1/packages/capability-matrix/specs/client/observability/client_info.md):

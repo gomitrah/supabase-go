@@ -115,31 +115,11 @@ jobs:
           go-version: stable
           cache: false
 
-      # CONTRIBUTING and SECURITY are delegated to the org-level supabase/.github
-      # repository; a repo-local copy would silently override the org default, so
-      # we assert their absence rather than ignore them. The check covers the
-      # locations GitHub recognises (repo root, .github/, docs/).
-      - name: Assert org-delegated files are absent
-        run: |
-          offenders=$(git ls-files \
-            | grep -iE '^((\.github|docs)/)?(CONTRIBUTING|SECURITY)(\.[a-z]+)?$' || true)
-          if [ -n "$offenders" ]; then
-            echo "These files are provided org-wide by supabase/.github and must not exist in this repository:"
-            echo "$offenders"
-            echo "Put repo-specific guidance in DEVELOPMENT.md instead."
-            exit 1
-          fi
-
-      # NOTICE is Apache-2.0's attribution mechanism with no MIT counterpart,
-      # so LICENSE is the entire licensing story here.
-      - name: Assert no NOTICE file exists
-        run: |
-          offenders=$(git ls-files | grep -iE '(^|/)NOTICE(\.(md|txt))?$' || true)
-          if [ -n "$offenders" ]; then
-            echo "NOTICE files must not exist in this repository - LICENSE is the sole licensing artifact:"
-            echo "$offenders"
-            exit 1
-          fi
+      # The repository holds the files its readers look for, where they look,
+      # and none that would shadow or contradict them. This is the same script
+      # developers run locally via check-fast.sh.
+      - name: Assert repository structure
+        run: ./scripts/check-repository-structure.sh
 
       # Every first-party require in a published (workspace) module must name
       # another published module, or a consumer could not resolve it. The

@@ -67,7 +67,13 @@ Nested workspaces are guarded too: each `go.work` below the repository root - th
 ./scripts/check-workspace-consistency.sh
 ```
 
-To run the whole fast tier before pushing - build and unit test plus the module-path and workspace-consistency guards, lint, vulnerabilities and spelling - use the aggregate:
+The repository's structure is guarded too. Two files must exist: [`doc.go`](doc.go) for the root package's overview on pkg.go.dev and [`.github/README.md`](.github/README.md) for the README GitHub shows. Others must not: a README at the root would lead the root module's page on pkg.go.dev, `CONTRIBUTING` and `SECURITY` files would override the ones the organization provides and a `NOTICE` file would contradict [`LICENSE`](LICENSE) as the sole licensing artifact:
+
+```bash
+./scripts/check-repository-structure.sh
+```
+
+To run the whole fast tier before pushing - build and unit test plus the module-path, workspace-consistency and repository-structure guards, lint, vulnerabilities and spelling - use the aggregate:
 
 ```bash
 ./scripts/check-fast.sh

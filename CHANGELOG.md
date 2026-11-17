@@ -12,6 +12,16 @@ Refer to [`DEVELOPMENT.md`](DEVELOPMENT.md#changelogs) for the structure and for
 
 Relocates the module to the repository root: it is imported as `github.com/supabase/supabase-go`, no longer as `github.com/supabase/supabase-go/supabase`, and its release tags carry the bare version. The releases below, headed by their `supabase/` tags, were made at the old import path and remain published there.
 
+## `supabase/v0.1.0-alpha.5` (2026-11-17)
+
+### Deprecated
+
+Deprecates this module in favor of `github.com/supabase/supabase-go`, the `supabase` root package's new path, where its releases will continue.
+
+The code is unchanged from the previous release, but `go get` and pkg.go.dev now warn that the module is deprecated.
+
+To move, change your import from `github.com/supabase/supabase-go/supabase` to `github.com/supabase/supabase-go` and run `go mod tidy`. The package is still named `supabase`, so the rest of your code stays the same.
+
 ## `supabase/v0.1.0-alpha.4` (2026-11-09)
 
 ### Changed

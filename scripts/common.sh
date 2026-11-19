@@ -302,6 +302,21 @@ newest_version() {
   sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1
 }
 
+# Print the newest tag on a remote repository formed of the given prefix
+# followed by a three-part version, and the commit it points at, as
+# 'tag commit'. For an annotated tag, that is the commit the tag peels to.
+# Probes that live origin, so network access is required. $1 is the
+# repository URL, $2 the prefix.
+newest_tag_with_commit() {
+  local repository_url="$1" tag_prefix="$2" tag_listing newest_tag
+  tag_listing="$(git ls-remote --tags "${repository_url}" "${tag_prefix}*")"
+  newest_tag="${tag_prefix}$(printf '%s\n' "${tag_listing}" | tag_names | versions_with_prefix "${tag_prefix}" | newest_version)"
+  printf '%s\n' "${tag_listing}" | awk -v tag="${newest_tag}" -v peeled="refs/tags/${newest_tag}^{}" -v plain="refs/tags/${newest_tag}" '
+    $2 == peeled { peeled_commit = $1 }
+    $2 == plain { plain_commit = $1 }
+    END { print tag, (peeled_commit != "" ? peeled_commit : plain_commit) }'
+}
+
 # Print the path of the script pinning the Supabase CLI for the integration
 # tests - the single source of truth for that pin: SUPABASE_CLI_VERSION plus
 # one cli_sha256 value per supported platform.

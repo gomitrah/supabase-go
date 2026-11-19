@@ -543,7 +543,7 @@ The panic survives only where module identity is present and contradicts the cal
 ## The consumer floor is a policy: the oldest Go major the Go project still supports
 
 **What**:  
-Every floor-carrying artefact - the published `go.mod` directives, [`go.work`](go.work), the consumer-shaped modules outside the workspace and [CI](.github/workflows/ci.yml)'s floor matrix legs - carries the oldest Go major release still supported by the Go project, raised in lockstep by [`scripts/raise-consumer-floor.sh`](scripts/raise-consumer-floor.sh).
+Every floor-carrying artifact - the published `go.mod` directives, [`go.work`](go.work), the consumer-shaped modules outside the workspace and [CI](.github/workflows/ci.yml)'s floor matrix legs - carries the oldest Go major release still supported by the Go project, raised in lockstep by [`scripts/raise-consumer-floor.sh`](scripts/raise-consumer-floor.sh).
 This floor should be raised opportunistically after each Go release rather than on release day.
 The policy is stated consumer-facing in [our `README.md`](.github/README.md) ("Supported Go versions").
 
@@ -555,11 +555,11 @@ A lower floor buys no reach: every Go line below the floor is end of life, so no
 
 **What**:  
 The `database.configuration.request_timeout` capability is claimed in [`sdk-compliance.yaml`](sdk-compliance.yaml) with `configuration.WithHTTPClient` as its symbol and no new API: consumers set a construction-time deadline by passing an `http.Client` whose `Timeout` field is set.
-The wrap in [`transport.WrapClient`](core/internal/transport/transport.go) clones the caller's client, so the field survives construction, and the deadline spans exactly the SDK's I/O - connection, headers and the response-body read - cancelling in-flight requests when it elapses.
+The wrap in [`transport.WrapClient`](core/internal/transport/transport.go) clones the caller's client, so the field survives construction, and the deadline spans exactly the SDK's I/O - connection, headers and the response-body read - canceling in-flight requests when it elapses.
 A per-request context deadline composes with it the Go-native way: whichever fires first cancels, and both surface as errors matching `context.DeadlineExceeded`.
 
 **Why**:  
-Go's standard `http.Client` already expresses the canonical semantic natively ("Timeout specifies a time limit for requests made by this Client", cancelling as if the request's context ended), so a dedicated `WithTimeout` option would be a second spelling of a field the injected client already carries - configuration surface without new capability.
+Go's standard `http.Client` already expresses the canonical semantic natively ("Timeout specifies a time limit for requests made by this Client", canceling as if the request's context ended), so a dedicated `WithTimeout` option would be a second spelling of a field the injected client already carries - configuration surface without new capability.
 The sibling precedent is Python's, which claims the capability through the language-native mechanism plus an explanatory note.
 JS and Flutter needed explicit options only because `fetch` and Dart's `http` lack a native construction-time whole-request client timeout.
 
@@ -567,7 +567,7 @@ JS and Flutter needed explicit options only because `fetch` and Dart's `http` la
 
 **What**:  
 `Insert(rows ...T)` is a method on `QueryBuilder[T]`, always sent as one JSON array - a single row, many rows or, for no arguments, the empty array `[]`, never `null`.
-No client-side column union is computed for a bulk insert: each row sends exactly the keys its own marshalling produces.
+No client-side column union is computed for a bulk insert: each row sends exactly the keys its own marshaling produces.
 Every write verb returns the same terminal `MutationBuilder[T]`, whose one shaping method, `Returning(columns)`, writes the `select` parameter with replace semantics where an empty string means every column.
 
 **Why**:  
@@ -789,5 +789,5 @@ Go offers no compatible way to change a published function signature, so every r
 The envelope makes response growth additive - a new accessor, never a second method beside the first - and an empty result reserves the same room on bodiless calls, where a bare `error` can never widen.
 The result is a pointer so that a failed call returns `nil` for it and code that ignores the error fails at the first accessor, on the line with the bug, where a value return would hand back a zero result that reads as an answer: an empty `ListUsersResult` is a page with no users.
 The sibling precedent does not transfer: supabase-js returns `{ error }` from its bodiless calls and can add fields to that object compatibly, while a Go return cannot, so this SDK alone needs the vessel in place before a field arrives.
-The stdlib's naked-tuple idiom lost the weighing: the ceremony costs one `_,` per action call, and an increasing share of calling code is written by builders (human+robot pairs), which emit one mechanical rule more reliably than a per-call judgement.
+The stdlib's naked-tuple idiom lost the weighing: the ceremony costs one `_,` per action call, and an increasing share of calling code is written by builders (human+robot pairs), which emit one mechanical rule more reliably than a per-call judgment.
 The derivation term is operation rather than method, which is overloaded between a Go method and an HTTP method, and an operation that orchestrates more than one endpoint keeps a well-formed result name.

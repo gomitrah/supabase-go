@@ -57,6 +57,8 @@ Spell-checking uses [cSpell](https://cspell.org), via Node/npm:
 
 A pull or a branch switch can change the lockfile and leave the install as it was, because git ignores `node_modules`. `spell-check.sh` then fails until you run `npm ci` again, so a local spell check always uses the cspell that CI uses.
 
+We write American English. cspell's en-US dictionary still accepts some British spellings, so the spell check also reports every word in [`tools/scowl/non-us-spellings.txt`](tools/scowl/non-us-spellings.txt) as forbidden. The list holds the British and Canadian spellings that [SCOWL](https://github.com/en-wl/wordlist), the word database behind cspell's English dictionaries, lists outside American English. `./scripts/generate-non-us-spellings.sh` regenerates it from the pinned SCOWL release. It needs Python 3.7 and SQLite 3.33 or later, which nothing else here does.
+
 The published module graph is guarded too: every first-party `require` in a workspace module (`go.mod` file) must name another workspace module - the modules we actually publish - so a consumer's build can resolve them. Our [`go.work`](go.work) overlay otherwise resolves siblings from local source and hides a require pointing at an unpublished or non-existent first-party path until consumers hit it after tags exist. The same check also holds the require graph to its layering DAG - core requires nothing first-party, a domain module requires only core and only the root `supabase` module composes the domains:
 
 ```bash
@@ -224,6 +226,7 @@ Everything we execute from outside the repository is pinned to an immutable dige
 - **Go tooling:** the linters and vuln scanners live in separate, non-published tool modules under [`tools/go/`](tools/go/), gopls, gosec and OSV-Scanner each in a module of their own whose `go.mod` says why, each pinned by checksum in its committed `go.sum` - the Go-native equivalent of a commit-SHA pin. The scripts build those exact, verified versions; nothing floats.
 - **Companion control:** do not use `pull_request_target` in any workflow with access to secrets (see the [pwn-requests advisory](https://securitylab.github.com/research/github-actions-preventing-pwn-requests/)).
 - **Node tooling:** the spell checker (cspell) is pinned the same way, one ecosystem over. Its entire dependency tree is locked by SHA-512 integrity hash in [`tools/node/package-lock.json`](tools/node/package-lock.json), the npm-native equivalent of `go.sum`, strictly used by `npm ci`.
+- **Word data:** the spell check's forbidden spellings come from SCOWL, pinned in [`scripts/generate-non-us-spellings.sh`](scripts/generate-non-us-spellings.sh) to a release tag and the commit it points at. The script writes nothing unless the tag still resolves to that commit. SCOWL's README warns that its command line and database schema may still change, so a new release can need the script's query adjusting.
 
 ## Auditing tool currency
 
@@ -233,7 +236,7 @@ Everything pinned above goes stale by design - refreshing a pin is a deliberate,
 ./scripts/tools-audit.sh
 ```
 
-It covers the GitHub Actions pins, the Go tool modules (under [`tools/go`](tools/go/)), the npm tool module ([`tools/node`](tools/node/)), the pinned Supabase CLI and the Go consumer floor. It is read-only and report-only: an available update is information rather than a failure, so the script sits outside `check-fast.sh` and CI, and it probes live origins (GitHub tags, the Go module proxy, the npm registry, go.dev) so it needs network access.
+It covers the GitHub Actions pins, the Go tool modules (under [`tools/go`](tools/go/)), the npm tool module ([`tools/node`](tools/node/)), the SCOWL release behind the spell check's forbidden spellings, the pinned Supabase CLI and the Go consumer floor. It is read-only and report-only: an available update is information rather than a failure, so the script sits outside `check-fast.sh` and CI, and it probes live origins (GitHub tags, the Go module proxy, the npm registry, go.dev) so it needs network access.
 
 Two pins sit outside its reach and are checked by eye when touched: the versioned runner image labels in the workflows (`runs-on: ubuntu-26.04` - compare against [GitHub's available images](https://github.com/actions/runner-images?tab=readme-ov-file#available-images)) and the Postgres `major_version` in [`integration-testing/supabase/config.toml`](integration-testing/supabase/config.toml), which follows the pinned CLI's default image rather than any independent origin.
 

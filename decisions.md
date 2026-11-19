@@ -65,7 +65,7 @@ The `go` directive in published modules (the consumer floor) is separate from, a
 
 **Why**:  
 They are different concerns: the published `go` directive is a compatibility contract for the consumer's unknown environment, while the CI/lint toolchain is our own deterministic environment (latest, our choice).
-A latest toolchain compiles a floor-versioned module fine.
+The latest toolchain compiles a floor-versioned module fine.
 Tool-pinning machinery must never live in the published modules, or it would drag our environment's needs into the consumer's contract and force the floor up.
 
 ## Use a committed go.work workspace for intra-repo module resolution
@@ -323,7 +323,7 @@ In this SDK both are done by hand, so no machine would read the grammar.
 ## Agent guidance lives in `.agents/skills`, and a root `.gitignore` keeps other agent surfaces out
 
 **What**:  
-Direct AI guidance, where that guidance is designed primarily for consumption by agents, is contained within [`.agents/skills/`](.agents/skills/), whose [README](.agents/skills/README.md) states the full approach (progressive disclosure, routing, etc..).
+Direct AI guidance, where that guidance is designed primarily for consumption by agents, is contained within [`.agents/skills/`](.agents/skills/), whose [README](.agents/skills/README.md) states the full approach (progressive disclosure, routing, etc.).
 A root [`.gitignore`](.gitignore) aims to keep other agent entry points out, for cleanliness (for example, `.claude/` and `.cursor/`).
 
 **Why**:  

@@ -51,9 +51,11 @@ Lint and vulnerability scanning run via two scripts that are *exactly* what CI r
 Spell-checking uses [cSpell](https://cspell.org), via Node/npm:
 
 ```bash
-(cd tools/node && npm ci)    # one-time setup (re-run only when the tools/node/package-lock.json lockfile changes)
+(cd tools/node && npm ci)    # install the pinned cspell, and again whenever tools/node/package-lock.json changes
 ./scripts/spell-check.sh     # cspell - Go and Markdown sources
 ```
+
+A pull or a branch switch can change the lockfile and leave the install as it was, because git ignores `node_modules`. `spell-check.sh` then fails until you run `npm ci` again, so a local spell check always uses the cspell that CI uses.
 
 The published module graph is guarded too: every first-party `require` in a workspace module (`go.mod` file) must name another workspace module - the modules we actually publish - so a consumer's build can resolve them. Our [`go.work`](go.work) overlay otherwise resolves siblings from local source and hides a require pointing at an unpublished or non-existent first-party path until consumers hit it after tags exist. The same check also holds the require graph to its layering DAG - core requires nothing first-party, a domain module requires only core and only the root `supabase` module composes the domains:
 

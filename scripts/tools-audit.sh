@@ -15,6 +15,10 @@ source "$(dirname "$0")/common.sh"
 
 echo "Tools Audit..."
 
+# The npm section reports the installed versions of tools/node's packages, so
+# the audit cannot complete unless they are the ones its lockfile pins.
+require_pinned_node_tools
+
 # Upgrade-available conclusions render bold red when stdout is a terminal,
 # and plain when piped or when NO_COLOR is set (https://no-color.org).
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -145,7 +149,7 @@ if [ "${npm_status}" -eq 0 ]; then
   echo "  ✅ all current"
 elif printf '%s\n' "${outdated_json}" | jq -e 'type == "object" and (has("error") | not) and length > 0' > /dev/null 2>&1; then
   printf '%s\n' "${outdated_json}" | jq -r --arg highlight "${highlight}" --arg reset "${reset}" \
-    'to_entries[] | "  \(.key) \(.value.current // "not installed"): \($highlight)\(.value.latest) available\($reset)\n    release notes: https://www.npmjs.com/package/\(.key)?activeTab=versions\n    bump: (cd tools/node && npm install --save-dev --save-exact \(.key)@\(.value.latest))"'
+    'to_entries[] | "  \(.key) \(.value.current): \($highlight)\(.value.latest) available\($reset)\n    release notes: https://www.npmjs.com/package/\(.key)?activeTab=versions\n    bump: (cd tools/node && npm install --save-dev --save-exact \(.key)@\(.value.latest))"'
   echo "  afterwards run: ./scripts/spell-check.sh"
 else
   echo "npm outdated did not produce an outdated report (exit ${npm_status}); see its message above." >&2

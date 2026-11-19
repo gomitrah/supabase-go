@@ -147,7 +147,7 @@ GitHub's "require SHA-pinned actions" setting is enabled for this repository.
 
 **Why**:  
 Actions have no lockfile and version tags are mutable git pointers - re-pointing a tag runs attacker code with the workflow token and secrets - so a commit SHA (and, for Go tools, a committed `go.sum` checksum) is the only immutable reference.
-On-demand refreshes keep "pinned" and "latest" close without scheduled churn, and Dependabot security updates still catch advisories with a reviewable diff, so pinning trades off against neither freshness nor safety.
+On-demand refreshes keep "pinned" and "latest" close without scheduled churn, and the vulnerability scan catches advisories against pinned versions, so pinning trades off against neither freshness nor safety.
 This follows Supabase's org-wide policy ([Git & GitHub](https://app.notion.com/p/c4922b923c544a2ea0377d60a0f21aec), Linear [PRODSEC-21](https://linear.app/supabase/issue/PRODSEC-21/) and [PRODSEC-67](https://linear.app/supabase/issue/PRODSEC-67/)) and extends the same discipline to our Go tooling.
 
 ## CI runner images are versioned labels, never `ubuntu-latest`
@@ -173,11 +173,24 @@ The published modules are dependency-free, leaving a module cache little to rest
 **What**:  
 Versions are resolved to latest at setup and refreshed on demand by the maintainer while the repo is under solo active development.
 Discovery is scripted while application stays manual: read-only [`scripts/tools-audit.sh`](scripts/tools-audit.sh) reports where every pin sits against its canonical origin and the bump route for each, and never applies anything.
-Dependabot security updates stay enabled via repo settings so advisories still raise a PR, but scheduled version-update PRs are deferred until the repo opens to broader contribution.
+Scheduled Dependabot version-update PRs are deferred until the repo opens to broader contribution, while Dependabot security updates stay enabled via repo settings.
 
 **Why**:  
 Under solo active development the repo is never idle long enough for scheduled update PRs to catch real staleness, so a weekly stream would be distraction rather than protection.
-Scripted discovery keeps the refresh deliberate while advisories still arrive on their own.
+Scripted discovery keeps the refresh deliberate.
+Advisories need no schedule, since the vulnerability scan catches them, daily and on every pull request.
+
+## The vulnerability scan fails on declared vulnerable versions, reachable or not
+
+**What**:  
+[`scripts/vulncheck.sh`](scripts/vulncheck.sh) fails when a known advisory affects a dependency version declared in any `go.mod` or npm lockfile in the repository, a tool module's included, whether or not code reaches it.
+OSV-Scanner makes that check against OSV.dev, which merges the Go vulnerability database with GitHub's advisories.
+It runs beside govulncheck, which keeps scanning the published modules for what their code can reach.
+
+**Why**:  
+A reachability scan stays silent on a vulnerable version that only a tool's own tests import, and Dependabot alerts only on advisories that GitHub has reviewed.
+Scanners that judge declared versions, an IDE's dependency checker among them, report such a version regardless, so the scripts fail on the same terms rather than leaving it to them.
+The accepted cost is that an advisory anywhere in a tool's dependency graph fails pull requests and the daily run until a bump, or an `osv-scanner.toml` entry with an expiry date, clears it.
 
 ## Domain navigation is context-free and cannot fail
 

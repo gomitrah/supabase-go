@@ -125,6 +125,7 @@ audit_go_tool_module() {
 audit_go_tool_module tools/go
 audit_go_tool_module tools/go/gopls
 audit_go_tool_module tools/go/gosec
+audit_go_tool_module tools/go/osv-scanner
 
 echo
 echo "==> Node tooling (tools/node, pinned by package.json + package-lock.json)"

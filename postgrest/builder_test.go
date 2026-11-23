@@ -240,8 +240,8 @@ func TestCollectSendsNULLSpellingsInArrayLiterals(t *testing.T) {
 	spellings := []string{"NULL", "null", "Null"}
 	values := []any{"NULL", "null", "Null", nil}
 	const (
-		spellingsLiteral = `{NULL,null,Null}`
-		valuesLiteral    = `{NULL,null,Null,null}`
+		spellingsLiteral = `{"NULL","null","Null"}`
+		valuesLiteral    = `{"NULL","null","Null",null}`
 	)
 	testCases := []struct {
 		name   string

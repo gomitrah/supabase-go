@@ -279,9 +279,9 @@ func rpcQueryValue(raw json.RawMessage) string {
 }
 
 // rpcArrayLiteral renders a JSON array as a Postgres array literal, such as
-// {1,"a,b",NULL}, that Postgres reads back as the same elements.
+// {1,"a,b",null}, that Postgres reads back as the same elements.
 // Each element renders by its JSON kind:
-//   - null as a bare NULL
+//   - null as a bare null
 //   - an array as a nested array literal
 //   - any other value as rpcQueryValue renders it, quoted by quoteArrayElement
 func rpcArrayLiteral(elements []json.RawMessage) string {
@@ -292,9 +292,7 @@ func rpcArrayLiteral(elements []json.RawMessage) string {
 			builder.WriteByte(',')
 		}
 		switch {
-		case bytes.Equal(element, []byte("null")):
-			builder.WriteString("NULL")
-		case bytes.HasPrefix(element, []byte("[")):
+		case bytes.Equal(element, []byte("null")), bytes.HasPrefix(element, []byte("[")):
 			builder.WriteString(rpcQueryValue(element))
 		default:
 			builder.WriteString(quoteArrayElement(rpcQueryValue(element)))

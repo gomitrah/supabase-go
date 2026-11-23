@@ -125,7 +125,7 @@ func TestRPCReadOnlyArrayArgumentElements(t *testing.T) {
 		{"whitespace at an edge", []string{" padded "}, `{" padded "}`},
 		{"the empty string", []string{""}, `{""}`},
 		{"NULL in any letter case", []string{"NULL", "null", "Null"}, `{"NULL","null","Null"}`},
-		{"a null", []any{nil, "b"}, `{NULL,b}`},
+		{"a null", []any{nil, "b"}, `{null,b}`},
 		{"numbers and booleans", []any{-2.5, 1e21, true}, `{-2.5,1e+21,true}`},
 		{"an object", []map[string]int{{"a": 1}}, `{"{\"a\":1}"}`},
 		{"a nested array", [][]string{{"a,b"}, {"c"}}, `{{"a,b"},{c}}`},

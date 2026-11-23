@@ -107,6 +107,49 @@ func TestRPCRowsReadOnlySendsGet(t *testing.T) {
 	}
 }
 
+// TestRPCReadOnlyArrayArgumentElements pins the Postgres array literal a
+// read-only call sends in its query string for an array argument, one case per
+// kind of element.
+func TestRPCReadOnlyArrayArgumentElements(t *testing.T) {
+	testCases := []struct {
+		name   string
+		values any
+		want   string
+	}{
+		{"plain text", []string{"cello", "double bass"}, `{cello,double bass}`},
+		{"a comma", []string{"a,b", "c"}, `{a,b,c}`},
+		{"braces", []string{"{x", "x}"}, `{{x,x}}`},
+		{"a string shaped like a literal", []string{"{a,b}"}, `{{a,b}}`},
+		{"a double quote", []string{`say "hi"`}, `{say "hi"}`},
+		{"a backslash", []string{`back\slash`}, `{back\slash}`},
+		{"whitespace at an edge", []string{" padded "}, `{ padded }`},
+		{"the empty string", []string{""}, `{}`},
+		{"NULL in any letter case", []string{"NULL", "null", "Null"}, `{NULL,null,Null}`},
+		{"a null", []any{nil, "b"}, `{null,b}`},
+		{"numbers and booleans", []any{-2.5, 1e21, true}, `{-2.5,1e+21,true}`},
+		{"an object", []map[string]int{{"a": 1}}, `{{"a":1}}`},
+		{"a nested array", [][]string{{"a,b"}, {"c"}}, `{{a,b},{c}}`},
+		{"an empty array", []string{}, `{}`},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			server, record := captureServer(t, http.StatusOK, "[]")
+
+			_, _, err := postgrest.Collect(
+				t.Context(),
+				newTestClient(t, server),
+				postgrest.RPC[map[string]any]("f").Arguments(map[string]any{"values": testCase.values}).Rows().ReadOnly(),
+			)
+			if err != nil {
+				t.Fatalf("Collect: %v", err)
+			}
+			if got := record.request.URL.Query().Get("values"); got != testCase.want {
+				t.Errorf("values = %s, want %s", got, testCase.want)
+			}
+		})
+	}
+}
+
 // TestRPCValueDecodesWholeBody pins the value shape through CollectRaw in both
 // transports: a synthesized bare 3 decodes whole into an int, with no row-array
 // unwrapping, whether the call is a POST or its read-only GET.

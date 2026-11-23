@@ -3,6 +3,7 @@ package asuser
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/supabase/supabase-go/postgrest"
@@ -127,6 +128,99 @@ func TestRPCValueReadOnlyScalar(t *testing.T) {
 	}
 	if sum != 3 {
 		t.Errorf("sum = %d, want 3", sum)
+	}
+}
+
+// TestRPCArrayArgumentElements proves which elements of an array argument
+// reach the function through each transport: echo_text_array answers its
+// text[] argument as it received it. The elements cover every reserved value,
+// an element spelling NULL and a null. Each arrives as sent, except where
+// readOnlyArrivals holds what the read-only GET delivers instead.
+func TestRPCArrayArgumentElements(t *testing.T) {
+	type arrayCase struct {
+		name     string
+		elements []any
+	}
+	testCases := []arrayCase{
+		{"a comma among two elements", []any{"a,b", "c"}},
+		{"NULL in either letter case", []any{"NULL", "null"}},
+		{"a null beside text", []any{nil, "b"}},
+	}
+	for _, reserved := range reservedValues {
+		testCases = append(testCases, arrayCase{reserved.name, []any{reserved.value}})
+	}
+
+	// arrival is what reaches the function: the elements it receives, or the
+	// code of the error the call fails with instead.
+	type arrival struct {
+		elements []any
+		code     string
+	}
+
+	// readOnlyArrivals holds, by case name, what the read-only GET delivers in
+	// place of the elements sent.
+	readOnlyArrivals := map[string]arrival{
+		"a comma among two elements": {elements: []any{"a", "b", "c"}},
+		"a comma b":                  {elements: []any{"a", "b"}},
+		"NULL in either letter case": {elements: []any{nil, nil}},
+		"double quoted":              {elements: []any{"The IKEA Effect"}},
+		"backslash inside":           {elements: []any{"backslash"}},
+		"space padded":               {elements: []any{"padded"}},
+		"empty":                      {elements: []any{}},
+		"just form feed":             {elements: []any{}},
+		"just newline":               {elements: []any{}},
+		"just carriage return":       {elements: []any{}},
+		"just tab":                   {elements: []any{}},
+		"just comma":                 {code: "22P02"},
+		"just opening brace":         {code: "22P02"},
+		"just closing brace":         {code: "22P02"},
+		"just double quote":          {code: "22P02"},
+		"just backslash":             {code: "22P02"},
+		"opening brace inside":       {code: "22P02"},
+		"closing brace inside":       {code: "22P02"},
+		"double quoted inside":       {code: "22P02"},
+	}
+
+	client := newIntegrationClient(t)
+
+	for _, testCase := range testCases {
+		call := postgrest.RPC[[]any]("echo_text_array").Arguments(map[string]any{"elements": testCase.elements}).Value()
+		readOnly, altered := readOnlyArrivals[testCase.name]
+		if !altered {
+			readOnly = arrival{elements: testCase.elements}
+		}
+		transports := []struct {
+			name  string
+			query postgrest.RawQuery[[]any]
+			want  arrival
+		}{
+			{"POST", call, arrival{elements: testCase.elements}},
+			{"ReadOnly GET", call.ReadOnly(), readOnly},
+		}
+		for _, transport := range transports {
+			t.Run(testCase.name+" via "+transport.name, func(t *testing.T) {
+				elements, _, err := postgrest.CollectRaw(t.Context(), client, transport.query)
+				if transport.want.code != "" {
+					var typedError *postgrest.Error
+					if !errors.As(err, &typedError) {
+						t.Fatalf("want *postgrest.Error, got %T: %v", err, err)
+					}
+					if typedError.Code != transport.want.code {
+						t.Errorf("Code = %q, want %q", typedError.Code, transport.want.code)
+					}
+					if typedError.HTTPStatus != http.StatusBadRequest {
+						t.Errorf("HTTPStatus = %d, want 400", typedError.HTTPStatus)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("CollectRaw: %v", err)
+				}
+				if !slices.Equal(elements, transport.want.elements) {
+					t.Errorf("elements = %#v, want %#v", elements, transport.want.elements)
+				}
+			})
+		}
 	}
 }
 

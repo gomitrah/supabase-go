@@ -390,6 +390,21 @@ func quoteIfNeeded(grammar, rendered string) string {
 	return `"` + escaped + `"`
 }
 
+// quoteArrayElement returns rendered ready for embedding as one element of a
+// Postgres array literal, verbatim unless a bare element would read as
+// something else. It double-quotes rendered, escaping " and \ as \" and \\,
+// when rendered:
+//   - is empty
+//   - spells NULL in any letter case
+//   - carries leading or trailing whitespace
+//   - contains a brace, comma, double quote or backslash
+func quoteArrayElement(rendered string) string {
+	if strings.EqualFold(rendered, "NULL") {
+		return `"` + rendered + `"`
+	}
+	return quoteIfNeeded(string(bracesListGrammar), rendered)
+}
+
 // appendOptionalConfiguration either returns operator if configuration is empty,
 // otherwise returns the operator plus the configuration parenthesized.
 func appendOptionalConfiguration(operator, configuration string) string {

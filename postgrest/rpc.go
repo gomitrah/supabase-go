@@ -256,8 +256,8 @@ func rpcArgumentsObject(arguments any) (map[string]json.RawMessage, error) {
 }
 
 // rpcQueryValue renders one argument value as its query-parameter text: a JSON
-// string bare, a JSON array in Postgres's {1,2,3} array-literal form
-// (supabase-js parity) and anything else as its JSON text.
+// string bare, a JSON array as a Postgres array literal and anything else as
+// its JSON text.
 func rpcQueryValue(raw json.RawMessage) string {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 {
@@ -278,8 +278,12 @@ func rpcQueryValue(raw json.RawMessage) string {
 	return string(trimmed)
 }
 
-// rpcArrayLiteral renders a JSON array as Postgres's {a,b,c} array literal,
-// each element rendered as rpcQueryValue renders it.
+// rpcArrayLiteral renders a JSON array as a Postgres array literal, such as
+// {1,"a,b",NULL}, that Postgres reads back as the same elements.
+// Each element renders by its JSON kind:
+//   - null as a bare NULL
+//   - an array as a nested array literal
+//   - any other value as rpcQueryValue renders it, quoted by quoteArrayElement
 func rpcArrayLiteral(elements []json.RawMessage) string {
 	var builder strings.Builder
 	builder.WriteByte('{')
@@ -287,7 +291,14 @@ func rpcArrayLiteral(elements []json.RawMessage) string {
 		if index > 0 {
 			builder.WriteByte(',')
 		}
-		builder.WriteString(rpcQueryValue(element))
+		switch {
+		case bytes.Equal(element, []byte("null")):
+			builder.WriteString("NULL")
+		case bytes.HasPrefix(element, []byte("[")):
+			builder.WriteString(rpcQueryValue(element))
+		default:
+			builder.WriteString(quoteArrayElement(rpcQueryValue(element)))
+		}
 	}
 	builder.WriteByte('}')
 	return builder.String()

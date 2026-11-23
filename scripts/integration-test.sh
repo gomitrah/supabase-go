@@ -19,7 +19,7 @@ set -euo pipefail
 
 source "$(dirname "$0")/common.sh"
 
-SUPABASE_CLI_VERSION="3.0.0"
+SUPABASE_CLI_VERSION="3.3.0"
 
 case "$(uname -s)" in
   Linux) cli_os="linux" ;;
@@ -35,10 +35,10 @@ esac
 # rewrites each arm's checksum in place, looked up by archive name in the
 # release's checksums.txt.
 case "${cli_os}_${cli_arch}" in
-  darwin_amd64) cli_sha256="d14cdb8536eb37b0f3b6d8c70fa5497b941f71005f0b2ac152b6e6c62864529c" ;;
-  darwin_arm64) cli_sha256="3b0bfc4602cd7d55ffc78a6b72443d3b8e5fdd856b777e75977978dceb3e44cc" ;;
-  linux_amd64) cli_sha256="eeb61edcd59a4735fcb5e58596574f25d03d420efca779f43ddb307e1cc5c754" ;;
-  linux_arm64) cli_sha256="243474fb5b491a0df04682fc1941cc5519559a1178ae01c225c633eda2e8acb8" ;;
+  darwin_amd64) cli_sha256="7104b653207224c49092cad5ae6f9254068c2a8f56a308055b3e6eade4f71402" ;;
+  darwin_arm64) cli_sha256="81a3bcac6d5fe8381882930fc5c3f27ae0ad28f61d72fbcc47cd910fe0845365" ;;
+  linux_amd64) cli_sha256="8d12731ae522a8f263170ca719b33f163dd05f4365ae6c22b31714dfa1e92b9b" ;;
+  linux_arm64) cli_sha256="d98ecc5e323d59f0d1c744ff5ce779098230002d8ba1df5576809f52f47746ac" ;;
   *) echo "No pinned checksum for ${cli_os}_${cli_arch}" >&2; exit 1 ;;
 esac
 

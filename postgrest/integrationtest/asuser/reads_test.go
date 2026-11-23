@@ -1035,52 +1035,6 @@ func TestUnsatisfiableRangeReturnsTypedError(t *testing.T) {
 }
 
 func TestFiltersWithReserved(t *testing.T) {
-	testCases := []struct {
-		name  string
-		value string
-	}{
-		{"just comma", ","},
-		{"just dot", "."},
-		{"just colon", ":"},
-		{"just asterisk", "*"},
-		{"just opening parenthesis", "("},
-		{"just closing parenthesis", ")"},
-		{"just dollar", "$"},
-		{"just opening square bracket", "["},
-		{"just closing square bracket", "]"},
-		{"just semicolon", ";"},
-		{"just opening brace", "{"},
-		{"just closing brace", "}"},
-		{"just caret", "^"},
-		{"just percent", "%"},
-		{"just left angle bracket", "<"},
-		{"just right angle bracket", ">"},
-		{"just equals", "="},
-		{"just plus", "+"},
-		{"just minus", "-"},
-		{"just double quote", `"`},
-		{"just single quote", "'"},
-		{"just backslash", `\`},
-		{"just backspace", "\b"},
-		{"just form feed", "\f"},
-		{"just newline", "\n"},
-		{"just carriage return", "\r"},
-		{"just tab", "\t"},
-		{"just multitudinous", "众"},
-		{"just poop", "💩"},
-		{"a comma b", "a,b"},
-		{"opening brace inside", "brace{inside"},
-		{"closing brace inside", "brace}inside"},
-		{"opening paren inside", "paren(open"},
-		{"closing paren inside", "close)paren"},
-		{"double quoted inside", `say "hi"`},
-		{"double quoted", `"The IKEA Effect"`},
-		{"backslash inside", `back\slash`},
-		{"space padded", " padded "},
-		{"empty", ""},
-		{"wildcard version tag", "v1.2:rc*"},
-	}
-
 	testFilters := []struct {
 		name    string
 		perform func(builder postgrest.FilterBuilder[justNamedEntity], value string) postgrest.Query[justNamedEntity]
@@ -1107,7 +1061,7 @@ func TestFiltersWithReserved(t *testing.T) {
 
 	client := newIntegrationClient(t)
 
-	for _, testCase := range testCases {
+	for _, testCase := range reservedValues {
 		for _, testFilter := range testFilters {
 			// There is no way to use an empty value on IN, so that case and filter combination is not run.
 			if !(testCase.name == "empty" && testFilter.name == "In") {

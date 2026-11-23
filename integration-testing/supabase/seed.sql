@@ -120,6 +120,7 @@ insert into public."⚠ reserved ⚠" (name, text, "array") values ('backslash i
 insert into public."⚠ reserved ⚠" (name, text, "array") values ('space padded', ' padded ', array[' padded ']); -- aren't we all! Right?
 insert into public."⚠ reserved ⚠" (name, text, "array") values ('empty', '', array['']);
 insert into public."⚠ reserved ⚠" (name, text, "array") values ('wildcard version tag', 'v1.2:rc*', array['v1.2:rc*']);
+insert into public."⚠ reserved ⚠" (name, text, "array") values ('spelled NULL', 'NULL', array['NULL']);
 
 insert into public.issues (id, title, status, priority, effort, resolved, assignee, tags, metadata, active_during, created_at, search)
 values

@@ -5,6 +5,10 @@
 This file holds the Go/SDK-specific guidance for working in this repository.
 General, organization-wide contribution policy lives in our [shared `.github` repository](https://github.com/supabase/.github)'s CONTRIBUTING.md file.
 
+This document is written for human contributors first.
+AI coding agents read it too, routed here by the skills in [`.agents/skills/`](.agents/skills/), and its conventions bind them just the same.
+Changes to it are written for a human reader, so a note that only an agent needs, such as what to read before starting a task, belongs in a skill instead.
+
 ## Pre-GA: external code contributions are not being accepted yet
 
 This SDK is being built first-party through its Alpha and Beta phases.

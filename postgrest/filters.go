@@ -361,10 +361,14 @@ func renderFilterFloat(value float64, bitSize int) string {
 	}
 }
 
-// renderFilterList renders elements as one delimited list, each element
-// rendered by renderFilterValue and quoted by quoteFilterListElement, for
-// example ("a,b",plain) or {1,2}. An empty elements slice renders just the
-// bare delimiters.
+// renderFilterList renders elements as one delimited list in grammar, for
+// example ("a,b",plain) or {1,"NULL",null}. Each element renders by
+// renderFilterValue and is then quoted:
+//   - in a braces list, a Postgres array literal, by quoteArrayElement
+//   - in any other list, by quoteIfNeeded
+//
+// A nil element in a braces list stays unquoted, as the null element. An
+// empty elements slice renders just the bare delimiters.
 func renderFilterList[Element any](grammar listGrammar, elements []Element) string {
 	var b strings.Builder
 	b.WriteByte(grammar[0])
@@ -372,7 +376,14 @@ func renderFilterList[Element any](grammar listGrammar, elements []Element) stri
 		if index > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(quoteIfNeeded(string(grammar), renderFilterValue(element)))
+		rendered := renderFilterValue(element)
+		switch {
+		case grammar != bracesListGrammar:
+			rendered = quoteIfNeeded(string(grammar), rendered)
+		case any(element) != nil:
+			rendered = quoteArrayElement(rendered)
+		}
+		b.WriteString(rendered)
 	}
 	b.WriteByte(grammar[1])
 	return b.String()

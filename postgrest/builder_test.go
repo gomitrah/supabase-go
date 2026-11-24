@@ -18,6 +18,8 @@ import (
 	"github.com/supabase/supabase-go/postgrest/internal/testkit"
 )
 
+// cSpell:ignore ilike
+
 type instrument struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -225,6 +227,50 @@ func TestCollectSendsRangeValuesThroughScalarFilters(t *testing.T) {
 			testkit.AssertOKResponse(t, response)
 			if got := observed.URL.Query().Get("active_during"); got != testCase.want {
 				t.Errorf("active_during = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestCollectSendsNULLSpellingsInArrayLiterals pins the array literal each
+// array filter sends for elements spelling NULL in three letter cases,
+// followed by a nil value where the filter takes values typed any.
+func TestCollectSendsNULLSpellingsInArrayLiterals(t *testing.T) {
+	builder := postgrest.From[instrument]("instruments")
+	spellings := []string{"NULL", "null", "Null"}
+	values := []any{"NULL", "null", "Null", nil}
+	const (
+		spellingsLiteral = `{"NULL","null","Null"}`
+		valuesLiteral    = `{"NULL","null","Null",null}`
+	)
+	testCases := []struct {
+		name   string
+		query  postgrest.Query[instrument]
+		column string
+		want   string
+	}{
+		{"ContainsAll", builder.ContainsAll("tags", values...), "tags", "cs." + valuesLiteral},
+		{"ContainedBy", builder.ContainedBy("tags", values...), "tags", "cd." + valuesLiteral},
+		{"OverlapsAny", builder.OverlapsAny("tags", values...), "tags", "ov." + valuesLiteral},
+		{"LikeAll", builder.LikeAll("name", spellings...), "name", "like(all)." + spellingsLiteral},
+		{"LikeAny", builder.LikeAny("name", spellings...), "name", "like(any)." + spellingsLiteral},
+		{"ILikeAll", builder.ILikeAll("name", spellings...), "name", "ilike(all)." + spellingsLiteral},
+		{"ILikeAny", builder.ILikeAny("name", spellings...), "name", "ilike(any)." + spellingsLiteral},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			server, record := captureServer(t, http.StatusOK, "[]")
+
+			rows, response, err := postgrest.Collect(t.Context(), newTestClient(t, server), testCase.query)
+			if err != nil {
+				t.Fatalf("Collect: %v", err)
+			}
+			if len(rows) != 0 {
+				t.Errorf("len(rows) = %d, want 0", len(rows))
+			}
+			testkit.AssertOKResponse(t, response)
+			if got := record.request.URL.Query().Get(testCase.column); got != testCase.want {
+				t.Errorf("%s = %s, want %s", testCase.column, got, testCase.want)
 			}
 		})
 	}

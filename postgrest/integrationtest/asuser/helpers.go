@@ -30,7 +30,7 @@ func newIntegrationClient(t *testing.T, options ...configuration.Option) *postgr
 // reservedValues holds each text value seeded into the "⚠ reserved ⚠" table,
 // named as the row that holds it: single characters that URL, PostgREST or
 // Postgres syntax reads specially or that test the text encoding, then
-// longer forms that combine them.
+// longer forms that combine them, the empty string and the word NULL.
 var reservedValues = []struct {
 	name  string
 	value string
@@ -75,4 +75,5 @@ var reservedValues = []struct {
 	{"space padded", " padded "},
 	{"empty", ""},
 	{"wildcard version tag", "v1.2:rc*"},
+	{"spelled NULL", "NULL"},
 }

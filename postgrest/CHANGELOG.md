@@ -13,6 +13,10 @@ Refer to [GitHub `../DEVELOPMENT.md`](https://github.com/supabase/supabase-go/bl
 An array argument of a read-only function call now reaches the function with the elements it was given.
 Before this fix an element holding a comma, brace, double quote or backslash, or one that was empty, padded with whitespace or spelled `NULL`, was split, altered or rejected.
 
+`FilterBuilder` methods `ContainsAll`, `ContainedBy`, `OverlapsAny`, `LikeAll`, `LikeAny`, `ILikeAll` and `ILikeAny`:  
+An element spelling `NULL` in any letter case now arrives as that text.
+Before this fix Postgres read it as a null, which matches nothing.
+
 ## `v0.1.0-alpha.2` (2026-11-09)
 
 ### Added

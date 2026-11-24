@@ -28,9 +28,9 @@ func TestRefreshAfterRevocation(t *testing.T) {
 	client := newAuthClient(t)
 	admin := newAdmin(t)
 	signIn := func() *auth.Session {
-		result, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: testkit.Password})
+		result, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, testkit.Password)
 		if err != nil {
-			t.Fatalf("SignInWithPassword: %v", err)
+			t.Fatalf("SignInWithPasswordByEmail: %v", err)
 		}
 		return result.Session()
 	}

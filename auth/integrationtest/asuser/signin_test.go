@@ -66,9 +66,9 @@ func TestSignUpByEmail(t *testing.T) {
 		t.Errorf("claims = (sub %q, email %q, role %q), want (%q, %q, authenticated)", claims.Subject(), claims.Email(), claims.Role(), user.ID(), email)
 	}
 
-	signedIn, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: email, Password: testkit.Password})
+	signedIn, err := client.SignInWithPasswordByEmail(t.Context(), email, testkit.Password)
 	if err != nil {
-		t.Fatalf("SignInWithPassword as the new account: %v", err)
+		t.Fatalf("SignInWithPasswordByEmail as the new account: %v", err)
 	}
 	if id := signedIn.Session().User().ID(); id != user.ID() {
 		t.Errorf("the password sign-in's user = %q, want the new account %q", id, user.ID())
@@ -144,6 +144,16 @@ func TestSignInWithOTPByPhone(t *testing.T) {
 
 	refused, err := client.SignInWithOTPByPhone(t.Context(), unregisteredPhone, otp.WithoutUserCreation())
 	assertServerError(t, refused, err, http.StatusUnprocessableEntity, "otp_disabled")
+}
+
+// TestSignInWithPasswordByPhone proves a password sign-in by phone reaches
+// the server's phone route, which the stack keeps closed without an SMS
+// provider, with phone_provider_disabled.
+func TestSignInWithPasswordByPhone(t *testing.T) {
+	client := newAuthClient(t)
+
+	result, err := client.SignInWithPasswordByPhone(t.Context(), unregisteredPhone, testkit.Password)
+	assertServerError(t, result, err, http.StatusUnprocessableEntity, "phone_provider_disabled")
 }
 
 // TestVerifyOTPRefusesAWrongCode proves that every route of verification

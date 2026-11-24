@@ -9,30 +9,43 @@ import (
 	"slices"
 )
 
-// PasswordCredentials identifies a user to [Client.SignInWithPassword] by
-// email or phone and their password. Exactly one of Email and Phone is set,
-// and the server rejects a value with both or neither. The value is read once
-// during the call and never retained.
-type PasswordCredentials struct {
-	Email    string `json:"email,omitzero"`
-	Phone    string `json:"phone,omitzero"`
-	Password string `json:"password"`
+// SignInWithPasswordByEmail signs a user in with their email address and
+// password. The result carries their session and, when the server sent one,
+// its advisory that the password falls short of the project's current
+// requirements.
+//
+// The server's rejections are returned as [*Error], with a Code such as:
+//   - invalid_credentials, alike for a wrong password, an unknown address and
+//     an account that can only sign in another way
+//   - email_not_confirmed, for an address not yet confirmed
+func (c *Client) SignInWithPasswordByEmail(ctx context.Context, email, password string) (*SignInWithPasswordResult, error) {
+	return c.signInWithPassword(ctx, passwordSignInPayload{Email: email, Password: password})
 }
 
-// SignInWithPassword signs a user in with their email or phone and password.
-// The result carries their session and, when the server sent one, its
-// advisory that the password falls short of the project's current
-// requirements. A wrong password, an unknown account and an account that can
-// only sign in another way are all answered with the same invalid_credentials
-// error, and an unconfirmed email with email_not_confirmed, each as [*Error].
-func (c *Client) SignInWithPassword(ctx context.Context, credentials PasswordCredentials) (*SignInWithPasswordResult, error) {
+// SignInWithPasswordByPhone signs a user in with their phone number and
+// password. The result carries their session and, when the server sent one,
+// its advisory that the password falls short of the project's current
+// requirements.
+//
+// The server's rejections are returned as [*Error], with a Code such as:
+//   - invalid_credentials, alike for a wrong password, an unknown number and
+//     an account that can only sign in another way
+//   - phone_not_confirmed, for a number not yet confirmed
+func (c *Client) SignInWithPasswordByPhone(ctx context.Context, phone, password string) (*SignInWithPasswordResult, error) {
+	return c.signInWithPassword(ctx, passwordSignInPayload{Phone: phone, Password: password})
+}
+
+// signInWithPassword sends body to the token endpoint as a password grant and
+// shapes the answer into a result with the session and, when the server sent
+// one, its weak-password advisory.
+func (c *Client) signInWithPassword(ctx context.Context, body passwordSignInPayload) (*SignInWithPasswordResult, error) {
 	endpoint := c.baseURL.JoinPath("token")
 	endpoint.RawQuery = url.Values{"grant_type": {"password"}}.Encode()
-	body, err := send(ctx, c.httpClient, http.MethodPost, endpoint, credentials, "")
+	response, err := send(ctx, c.httpClient, http.MethodPost, endpoint, body, "")
 	if err != nil {
 		return nil, err
 	}
-	state, err := parseTokenResponse(body)
+	state, err := parseTokenResponse(response)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +55,7 @@ func (c *Client) SignInWithPassword(ctx context.Context, credentials PasswordCre
 			Reasons []string `json:"reasons"`
 		} `json:"weak_password"`
 	}
-	if err := json.Unmarshal(body, &advisory); err != nil {
+	if err := json.Unmarshal(response, &advisory); err != nil {
 		return nil, fmt.Errorf("auth: decoding token response: %w", err)
 	}
 	result := &SignInWithPasswordResult{session: c.newSession(state, nil)}
@@ -52,9 +65,18 @@ func (c *Client) SignInWithPassword(ctx context.Context, credentials PasswordCre
 	return result, nil
 }
 
-// SignInWithPasswordResult is the answer to [Client.SignInWithPassword]: the
-// new [Session] and, when the server sent one, the advisory that the accepted
-// password falls short of the project's current requirements.
+// passwordSignInPayload is the wire body of a password sign-in. password is
+// always stated, since the server requires it.
+type passwordSignInPayload struct {
+	Email    string `json:"email,omitzero"`
+	Phone    string `json:"phone,omitzero"`
+	Password string `json:"password"`
+}
+
+// SignInWithPasswordResult is the answer to
+// [Client.SignInWithPasswordByEmail] and [Client.SignInWithPasswordByPhone]:
+// the new [Session] and, when the server sent one, the advisory that the
+// accepted password falls short of the project's current requirements.
 type SignInWithPasswordResult struct {
 	session      *Session
 	weakPassword *WeakPassword

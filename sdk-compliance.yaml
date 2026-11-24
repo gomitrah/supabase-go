@@ -566,11 +566,8 @@ features:
     note: |
       No captcha token.
     symbols:
-      - auth.Client.SignInWithPassword
-      - auth.PasswordCredentials
-      - auth.PasswordCredentials.Email
-      - auth.PasswordCredentials.Password
-      - auth.PasswordCredentials.Phone
+      - auth.Client.SignInWithPasswordByEmail
+      - auth.Client.SignInWithPasswordByPhone
       - auth.SignInWithPasswordResult
       - auth.SignInWithPasswordResult.Session
       - auth.SignInWithPasswordResult.WeakPassword

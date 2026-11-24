@@ -46,9 +46,9 @@
 //
 // A program that signs users in itself holds a [Session] per signed-in user,
 // which comes from one of:
-//   - a sign-in, by password with [Client.SignInWithPassword] or by
-//     redeeming a one-time code with a VerifyOTP method, such as
-//     [Client.VerifyOTPByEmail]
+//   - a sign-in, by password with a SignInWithPassword method, such as
+//     [Client.SignInWithPasswordByEmail], or by redeeming a one-time code
+//     with a VerifyOTP method, such as [Client.VerifyOTPByEmail]
 //   - a sign-up with [Client.SignUpByEmail] or [Client.SignUpByPhone], when
 //     the project confirms accounts at once
 //   - tokens obtained elsewhere, adopted by [Client.SessionFromTokens]

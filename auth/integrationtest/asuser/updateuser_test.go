@@ -16,9 +16,9 @@ func TestUpdateUser(t *testing.T) {
 	projectURL, apiKey := testkit.Credentials(t)
 	user := testkit.SignUpUser(t, projectURL, apiKey)
 	client := newAuthClient(t)
-	signedIn, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: testkit.Password})
+	signedIn, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, testkit.Password)
 	if err != nil {
-		t.Fatalf("SignInWithPassword: %v", err)
+		t.Fatalf("SignInWithPasswordByEmail: %v", err)
 	}
 	session := signedIn.Session()
 
@@ -57,10 +57,10 @@ func TestUpdateUser(t *testing.T) {
 	if _, err = client.UpdateUser(t.Context(), accessToken, auth.UserUpdate{Password: newPassword}); err != nil {
 		t.Fatalf("Client.UpdateUser: %v", err)
 	}
-	if _, err = client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: newPassword}); err != nil {
-		t.Errorf("SignInWithPassword with the new password: %v", err)
+	if _, err = client.SignInWithPasswordByEmail(t.Context(), user.Email, newPassword); err != nil {
+		t.Errorf("SignInWithPasswordByEmail with the new password: %v", err)
 	}
-	stale, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: testkit.Password})
+	stale, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, testkit.Password)
 	assertServerError(t, stale, err, http.StatusBadRequest, "invalid_credentials")
 }
 
@@ -71,9 +71,9 @@ func TestUpdateUserEmailWaitsOnConfirmation(t *testing.T) {
 	projectURL, apiKey := testkit.Credentials(t)
 	user := testkit.SignUpUser(t, projectURL, apiKey)
 	client := newAuthClient(t)
-	signedIn, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: testkit.Password})
+	signedIn, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, testkit.Password)
 	if err != nil {
-		t.Fatalf("SignInWithPassword: %v", err)
+		t.Fatalf("SignInWithPasswordByEmail: %v", err)
 	}
 	session := signedIn.Session()
 

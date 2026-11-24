@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"context"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -14,26 +15,30 @@ import (
 
 func TestSignInWithPasswordRequestShape(t *testing.T) {
 	cases := []struct {
-		name        string
-		credentials auth.PasswordCredentials
-		want        map[string]any
+		name   string
+		signIn func(ctx context.Context, client *auth.Client) (*auth.SignInWithPasswordResult, error)
+		want   map[string]any
 	}{
 		{
-			name:        "an email sends email and password only",
-			credentials: auth.PasswordCredentials{Email: "ada@example.com", Password: "pw"},
-			want:        map[string]any{"email": "ada@example.com", "password": "pw"},
+			name: "an email sends email and password only",
+			signIn: func(ctx context.Context, client *auth.Client) (*auth.SignInWithPasswordResult, error) {
+				return client.SignInWithPasswordByEmail(ctx, "ada@example.com", "pw")
+			},
+			want: map[string]any{"email": "ada@example.com", "password": "pw"},
 		},
 		{
-			name:        "a phone sends phone and password only",
-			credentials: auth.PasswordCredentials{Phone: "15551234567", Password: "pw"},
-			want:        map[string]any{"phone": "15551234567", "password": "pw"},
+			name: "a phone sends phone and password only",
+			signIn: func(ctx context.Context, client *auth.Client) (*auth.SignInWithPasswordResult, error) {
+				return client.SignInWithPasswordByPhone(ctx, "15551234567", "pw")
+			},
+			want: map[string]any{"phone": "15551234567", "password": "pw"},
 		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			server := newSessionServer(t)
-			if _, err := server.client(t).SignInWithPassword(t.Context(), testCase.credentials); err != nil {
-				t.Fatalf("SignInWithPassword: %v", err)
+			if _, err := testCase.signIn(t.Context(), server.client(t)); err != nil {
+				t.Fatalf("sign-in: %v", err)
 			}
 			requests := server.requestsTo(tokenPath)
 			if len(requests) != 1 {
@@ -84,9 +89,9 @@ func TestSignInWithPasswordParsesTheSession(t *testing.T) {
 func TestSignInWithPasswordWeakPasswordAdvisory(t *testing.T) {
 	t.Run("a response without the advisory gives nil", func(t *testing.T) {
 		server := newSessionServer(t)
-		result, err := server.client(t).SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: "ada@example.com", Password: "pw"})
+		result, err := server.client(t).SignInWithPasswordByEmail(t.Context(), "ada@example.com", "pw")
 		if err != nil {
-			t.Fatalf("SignInWithPassword: %v", err)
+			t.Fatalf("SignInWithPasswordByEmail: %v", err)
 		}
 		if result.WeakPassword() != nil {
 			t.Errorf("WeakPassword() = %+v, want nil", result.WeakPassword())
@@ -107,9 +112,9 @@ func TestSignInWithPasswordWeakPasswordAdvisory(t *testing.T) {
 		}
 		server.script(tokenPath, answer{status: http.StatusOK, body: string(advised)})
 
-		result, err := server.client(t).SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: "ada@example.com", Password: "pw"})
+		result, err := server.client(t).SignInWithPasswordByEmail(t.Context(), "ada@example.com", "pw")
 		if err != nil {
-			t.Fatalf("SignInWithPassword: %v", err)
+			t.Fatalf("SignInWithPasswordByEmail: %v", err)
 		}
 		weak := result.WeakPassword()
 		if weak == nil {

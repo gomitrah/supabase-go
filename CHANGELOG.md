@@ -6,6 +6,12 @@ This module is the root of a multi-module repository.
 The other published modules, which [`go.work`](go.work) lists, each keep a changelog of their own: [`auth`](auth/CHANGELOG.md), [`core`](core/CHANGELOG.md) and [`postgrest`](postgrest/CHANGELOG.md).
 Refer to [`DEVELOPMENT.md`](DEVELOPMENT.md#changelogs) for the structure and format every module's changelog follows.
 
+## `v0.1.0-alpha.6` (2026-11-24)
+
+### Changed
+
+- Upgrades `postgrest` from `v0.1.0-alpha.2` to `v0.1.0-alpha.3`.
+
 ## `v0.1.0-alpha.5` (2026-11-16)
 
 ### Changed

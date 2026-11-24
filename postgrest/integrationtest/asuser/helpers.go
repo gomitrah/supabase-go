@@ -26,3 +26,53 @@ func newIntegrationClient(t *testing.T, options ...configuration.Option) *postgr
 	}
 	return postgrest.NewFromConfiguration(projectConfiguration)
 }
+
+// reservedValues holds each text value seeded into the "⚠ reserved ⚠" table,
+// named as the row that holds it: single characters that URL, PostgREST or
+// Postgres syntax reads specially or that test the text encoding, then
+// longer forms that combine them.
+var reservedValues = []struct {
+	name  string
+	value string
+}{
+	{"just comma", ","},
+	{"just dot", "."},
+	{"just colon", ":"},
+	{"just asterisk", "*"},
+	{"just opening parenthesis", "("},
+	{"just closing parenthesis", ")"},
+	{"just dollar", "$"},
+	{"just opening square bracket", "["},
+	{"just closing square bracket", "]"},
+	{"just semicolon", ";"},
+	{"just opening brace", "{"},
+	{"just closing brace", "}"},
+	{"just caret", "^"},
+	{"just percent", "%"},
+	{"just left angle bracket", "<"},
+	{"just right angle bracket", ">"},
+	{"just equals", "="},
+	{"just plus", "+"},
+	{"just minus", "-"},
+	{"just double quote", `"`},
+	{"just single quote", "'"},
+	{"just backslash", `\`},
+	{"just backspace", "\b"},
+	{"just form feed", "\f"},
+	{"just newline", "\n"},
+	{"just carriage return", "\r"},
+	{"just tab", "\t"},
+	{"just multitudinous", "众"},
+	{"just poop", "💩"},
+	{"a comma b", "a,b"},
+	{"opening brace inside", "brace{inside"},
+	{"closing brace inside", "brace}inside"},
+	{"opening paren inside", "paren(open"},
+	{"closing paren inside", "close)paren"},
+	{"double quoted inside", `say "hi"`},
+	{"double quoted", `"The IKEA Effect"`},
+	{"backslash inside", `back\slash`},
+	{"space padded", " padded "},
+	{"empty", ""},
+	{"wildcard version tag", "v1.2:rc*"},
+}

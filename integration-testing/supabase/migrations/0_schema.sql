@@ -284,6 +284,12 @@ create function public.sum_json(json)
 returns integer language sql immutable
 as $$ select sum((element->>'value')::integer)::integer from json_array_elements($1) as t(element); $$;
 
+-- Array parameter: echo_text_array answers its text[] argument unchanged, so a
+-- test compares the elements the function received with those it was sent.
+-- Immutable, so it also runs read-only under GET.
+create function public.echo_text_array(elements text[])
+returns text[] language sql immutable as 'select elements;';
+
 -- Table-valued result: repertoire_easier_than returns a set of repertoire rows,
 -- decoded like a table read. Stable, so it also runs read-only under GET.
 create function public.repertoire_easier_than(max_difficulty integer)

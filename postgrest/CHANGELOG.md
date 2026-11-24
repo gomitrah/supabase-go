@@ -5,6 +5,14 @@ All notable changes to this module will be documented in this file.
 This module is one of a number of modules defined in a multi-module repository.
 Refer to [GitHub `../DEVELOPMENT.md`](https://github.com/supabase/supabase-go/blob/main/DEVELOPMENT.md#changelogs) for further details on structure and format, and to [GitHub `../CHANGELOG.md`](https://github.com/supabase/supabase-go/blob/main/CHANGELOG.md) for sibling modules.
 
+## Unreleased
+
+### Fixed
+
+`RPCRowsCall.ReadOnly` and `RPCValueCall.ReadOnly`:  
+An array argument of a read-only function call now reaches the function with the elements it was given.
+Before this fix an element holding a comma, brace, double quote or backslash, or one that was empty, padded with whitespace or spelled `NULL`, was split, altered or rejected.
+
 ## `v0.1.0-alpha.2` (2026-11-09)
 
 ### Added

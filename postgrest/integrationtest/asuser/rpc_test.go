@@ -3,6 +3,7 @@ package asuser
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/supabase/supabase-go/postgrest"
@@ -127,6 +128,50 @@ func TestRPCValueReadOnlyScalar(t *testing.T) {
 	}
 	if sum != 3 {
 		t.Errorf("sum = %d, want 3", sum)
+	}
+}
+
+// TestRPCArrayArgumentElements proves which elements of an array argument
+// reach the function through each transport: echo_text_array answers its
+// text[] argument as it received it. The elements cover every reserved value,
+// an element spelling NULL and a null. Each arrives as sent, whether the call
+// is a POST or its read-only GET.
+func TestRPCArrayArgumentElements(t *testing.T) {
+	type arrayCase struct {
+		name     string
+		elements []any
+	}
+	testCases := []arrayCase{
+		{"a comma among two elements", []any{"a,b", "c"}},
+		{"NULL in either letter case", []any{"NULL", "null"}},
+		{"a null beside text", []any{nil, "b"}},
+	}
+	for _, reserved := range reservedValues {
+		testCases = append(testCases, arrayCase{reserved.name, []any{reserved.value}})
+	}
+
+	client := newIntegrationClient(t)
+
+	for _, testCase := range testCases {
+		call := postgrest.RPC[[]any]("echo_text_array").Arguments(map[string]any{"elements": testCase.elements}).Value()
+		transports := []struct {
+			name  string
+			query postgrest.RawQuery[[]any]
+		}{
+			{"POST", call},
+			{"ReadOnly GET", call.ReadOnly()},
+		}
+		for _, transport := range transports {
+			t.Run(testCase.name+" via "+transport.name, func(t *testing.T) {
+				elements, _, err := postgrest.CollectRaw(t.Context(), client, transport.query)
+				if err != nil {
+					t.Fatalf("CollectRaw: %v", err)
+				}
+				if !slices.Equal(elements, testCase.elements) {
+					t.Errorf("elements = %#v, want %#v", elements, testCase.elements)
+				}
+			})
+		}
 	}
 }
 

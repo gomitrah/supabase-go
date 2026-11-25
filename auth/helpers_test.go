@@ -462,9 +462,9 @@ func (s *sessionServer) client(t *testing.T, options ...configuration.Option) *a
 func (s *sessionServer) signIn(t *testing.T, client *auth.Client, lifetime time.Duration) *auth.Session {
 	t.Helper()
 	s.script(tokenPath, answer{status: http.StatusOK, lifetime: lifetime}, answer{status: http.StatusOK})
-	result, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: "ada@example.com", Password: "correct horse battery staple"})
+	result, err := client.SignInWithPasswordByEmail(t.Context(), "ada@example.com", "correct horse battery staple")
 	if err != nil {
-		t.Fatalf("SignInWithPassword: %v", err)
+		t.Fatalf("SignInWithPasswordByEmail: %v", err)
 	}
 	return result.Session()
 }

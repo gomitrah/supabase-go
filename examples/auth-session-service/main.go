@@ -62,7 +62,7 @@ func main() {
 // until ctx is done, then signs out. It returns an error when the session
 // ends on its own or any step fails.
 func run(ctx context.Context, client *auth.Client, email, password string) error {
-	result, err := client.SignInWithPassword(ctx, auth.PasswordCredentials{Email: email, Password: password})
+	result, err := client.SignInWithPasswordByEmail(ctx, email, password)
 	if err != nil {
 		return fmt.Errorf("signing in: %w", err)
 	}

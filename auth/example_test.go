@@ -165,14 +165,14 @@ func bearerToken(request *http.Request) (string, bool) {
 	return value, true
 }
 
-// ExampleClient_SignInWithPassword signs a long-running service in once, as
-// the account its operator created for it, and holds the Session rather than
-// a token string: the session renews its access token on demand, and a
-// Database client acts as this user with
+// ExampleClient_SignInWithPasswordByEmail signs a long-running service in
+// once, as the account its operator created for it, and holds the Session
+// rather than a token string: the session renews its access token on demand,
+// and a Database client acts as this user with
 // WithAccessTokenProvider(session.AccessToken). Signing out with the local
 // scope when the service stops revokes this session alone, so other replicas
 // signed in as the same account stay signed in.
-func ExampleClient_SignInWithPassword() {
+func ExampleClient_SignInWithPasswordByEmail() {
 	client, err := auth.New("https://PROJECT_ID.supabase.co", "sb_publishable_...")
 	if err != nil {
 		fmt.Println(err)
@@ -180,10 +180,7 @@ func ExampleClient_SignInWithPassword() {
 	}
 	ctx := context.Background()
 
-	result, err := client.SignInWithPassword(ctx, auth.PasswordCredentials{
-		Email:    os.Getenv("SERVICE_EMAIL"),
-		Password: os.Getenv("SERVICE_PASSWORD"),
-	})
+	result, err := client.SignInWithPasswordByEmail(ctx, os.Getenv("SERVICE_EMAIL"), os.Getenv("SERVICE_PASSWORD"))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -214,10 +211,7 @@ func ExampleSession_AutoRefresh() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	result, err := client.SignInWithPassword(ctx, auth.PasswordCredentials{
-		Email:    os.Getenv("SERVICE_EMAIL"),
-		Password: os.Getenv("SERVICE_PASSWORD"),
-	})
+	result, err := client.SignInWithPasswordByEmail(ctx, os.Getenv("SERVICE_EMAIL"), os.Getenv("SERVICE_PASSWORD"))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -251,10 +245,7 @@ func ExampleSession_AddEventListener() {
 	}
 	ctx := context.Background()
 
-	result, err := client.SignInWithPassword(ctx, auth.PasswordCredentials{
-		Email:    os.Getenv("SERVICE_EMAIL"),
-		Password: os.Getenv("SERVICE_PASSWORD"),
-	})
+	result, err := client.SignInWithPasswordByEmail(ctx, os.Getenv("SERVICE_EMAIL"), os.Getenv("SERVICE_PASSWORD"))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -543,10 +534,7 @@ func ExampleClient_SessionFromStore() {
 	case err == nil:
 		session = restored.Session()
 	case errors.Is(err, auth.ErrNoStoredSession), errors.Is(err, auth.ErrSessionExpired):
-		signedIn, signInErr := client.SignInWithPassword(ctx, auth.PasswordCredentials{
-			Email:    os.Getenv("EXAMPLE_EMAIL"),
-			Password: os.Getenv("EXAMPLE_PASSWORD"),
-		})
+		signedIn, signInErr := client.SignInWithPasswordByEmail(ctx, os.Getenv("EXAMPLE_EMAIL"), os.Getenv("EXAMPLE_PASSWORD"))
 		if signInErr != nil {
 			fmt.Println(signInErr)
 			return

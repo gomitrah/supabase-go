@@ -41,9 +41,9 @@ func (s *memoryStore) Delete(_ context.Context) error {
 // signIn signs the signed-up user in through the SDK and returns the session.
 func signIn(t *testing.T, client *auth.Client, user testkit.User) *auth.Session {
 	t.Helper()
-	result, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: testkit.Password})
+	result, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, testkit.Password)
 	if err != nil {
-		t.Fatalf("SignInWithPassword: %v", err)
+		t.Fatalf("SignInWithPasswordByEmail: %v", err)
 	}
 	return result.Session()
 }
@@ -66,18 +66,18 @@ func assertRevoked(t *testing.T, client *auth.Client, accessToken string) {
 	assertServerError(t, result, err, http.StatusForbidden, "session_not_found")
 }
 
-// TestSignInWithPassword signs a real user in and proves the session carries
-// the served profile and a new session's tokens, the access token verifying
-// locally. A wrong password is answered with invalid_credentials.
-func TestSignInWithPassword(t *testing.T) {
+// TestSignInWithPasswordByEmail signs a real user in and proves the session
+// carries the served profile and a new session's tokens, the access token
+// verifying locally. A wrong password is answered with invalid_credentials.
+func TestSignInWithPasswordByEmail(t *testing.T) {
 	projectURL, apiKey := testkit.Credentials(t)
 	client := newAuthClient(t)
 
 	t.Run("the session carries the user and a token that verifies", func(t *testing.T) {
 		user := testkit.SignUpUser(t, projectURL, apiKey)
-		result, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: testkit.Password})
+		result, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, testkit.Password)
 		if err != nil {
-			t.Fatalf("SignInWithPassword: %v", err)
+			t.Fatalf("SignInWithPasswordByEmail: %v", err)
 		}
 		if result.WeakPassword() != nil {
 			t.Errorf("WeakPassword() = %+v, want nil for a password the project accepts", result.WeakPassword())
@@ -108,7 +108,7 @@ func TestSignInWithPassword(t *testing.T) {
 
 	t.Run("a wrong password is answered with invalid_credentials", func(t *testing.T) {
 		user := testkit.SignUpUser(t, projectURL, apiKey)
-		result, err := client.SignInWithPassword(t.Context(), auth.PasswordCredentials{Email: user.Email, Password: "not-the-password"})
+		result, err := client.SignInWithPasswordByEmail(t.Context(), user.Email, "not-the-password")
 		assertServerError(t, result, err, http.StatusBadRequest, "invalid_credentials")
 	})
 }
